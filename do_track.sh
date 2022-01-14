@@ -44,6 +44,6 @@ do
       echo "$rev $epoch $mates" >> all_results.txt
 
       # update the graph
-      awk '{print $2,$3}' all_results.txt | sort  | xmgrace  -param matefinding.xmgrparams - -printfile all_results.svg -hdevice SVG -hardcopy
+      awk '{print $2,$3}' all_results.txt | sort  | xmgrace  -param matefinding.xmgrparams - -printfile all_results.png -hdevice PNG -hardcopy
    fi
 done

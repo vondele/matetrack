@@ -1,7 +1,7 @@
 # Grace project file
 #
 version 50125
-page size 842, 595
+page size 1600, 1200
 page scroll 5%
 page inout 5%
 link page off
@@ -123,7 +123,7 @@ timestamp color 1
 timestamp rot 0
 timestamp font 0
 timestamp char size 1.000000
-timestamp def "Fri Jan 14 09:59:21 2022"
+timestamp def "Fri Jan 14 14:34:32 2022"
 r0 off
 link r0 to g0
 r0 type above
@@ -170,7 +170,7 @@ g0 fixedpoint xy 0.000000, 0.000000
 g0 fixedpoint format general general
 g0 fixedpoint prec 6, 6
 with g0
-    world 2459570, 2000, 2459600, 2600
+    world 2459500, 2200, 2459600, 2500
     stack world 0, 0, 0, 0
     znorm 1
     view 0.150000, 0.150000, 1.150000, 0.850000
@@ -201,7 +201,7 @@ with g0
     xaxis  label color 1
     xaxis  label place normal
     xaxis  tick on
-    xaxis  tick major 5
+    xaxis  tick major 20
     xaxis  tick minor ticks 1
     xaxis  tick default 6
     xaxis  tick place rounded true
@@ -252,7 +252,7 @@ with g0
     yaxis  label color 1
     yaxis  label place normal
     yaxis  tick on
-    yaxis  tick major 100
+    yaxis  tick major 50
     yaxis  tick minor ticks 1
     yaxis  tick default 6
     yaxis  tick place rounded true
