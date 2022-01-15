@@ -6,9 +6,10 @@ set -e
 # use 1M nodes for each position
 nodes=1000000
 
-# clone SF as needed
+# clone SF as needed, download an old, non-embedded master net as well.
 if [[ ! -e Stockfish ]]; then
    git clone https://github.com/official-stockfish/Stockfish.git
+   wget https://tests.stockfishchess.org/api/nn/nn-82215d0fd0df.nnue
 fi
 
 # update SF and get revision list
@@ -16,7 +17,7 @@ cd Stockfish/src
 git checkout master >& checkout.log
 git fetch origin  >& fetch.log
 git pull >& pull.log
-revs=`git rev-list 773dff020968f7a6f590cfd53e8fd89f12e15e36^..HEAD`
+revs=`git rev-list dd9cf305816c84c2acfa11cae09a31c4d77cc5a5^..HEAD`
 cd ../..
 
 # go over the revision list and see if we have mate results already
