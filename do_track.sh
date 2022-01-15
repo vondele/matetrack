@@ -45,9 +45,10 @@ do
 
       # update the graph
       awk '{print $2,$3}' all_results.txt | sort  | xmgrace  -param matefinding.xmgrparams - -printfile all_results.png -hdevice PNG -hardcopy
+      awk '{print $2,$3}' all_results.txt | sort | tail -n 50  | xmgrace  -param matefinding.xmgrparams - -printfile all_results_recent.png -hdevice PNG -hardcopy
    fi
 done
 
-git add all_results.txt all_results.png
+git add all_results.txt all_results.png all_results_recent.png
 git commit -m "Update results"
 git push origin master
