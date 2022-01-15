@@ -5,6 +5,12 @@ in finding the best mates.
 
 Based on the 6566 mate problems in `ChestUCI_23102018.epd`
 
+Recent results
+<p align="center">
+  <img src="all_results_recent.png?raw=true">
+</p>
+
+All results
 <p align="center">
   <img src="all_results.png?raw=true">
 </p>
