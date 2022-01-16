@@ -19,6 +19,7 @@ git fetch origin  >& fetch.log
 git pull >& pull.log
 revs=`git rev-list dd9cf305816c84c2acfa11cae09a31c4d77cc5a5^..HEAD |\
       grep -v 44c320a572188b5875291103edb344c584b91d19 |\
+      grep -v bdeda52efd55c97d0f5da908267c01f973371e5d |\
       grep -v 4a7b8180ecaef7d164fa53a1d545372df1173596`
 cd ../..
 
