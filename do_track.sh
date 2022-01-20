@@ -59,6 +59,6 @@ done
 
 git add all_results.txt all_results.png all_results_recent.png
 git diff --staged --quiet || git commit -m "Update results"
-git push origin master
+git push origin master >& push.log
 
 echo "ended at: " `date`
