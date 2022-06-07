@@ -21,7 +21,7 @@ class Analyser:
         engine = chess.engine.SimpleEngine.popen_uci(self.engine)
         for input in fens:
             board = chess.Board(input[0])
-            info = engine.analyse(board, chess.engine.Limit(nodes=self.nodes))
+            info = engine.analyse(board, chess.engine.Limit(nodes=self.nodes), game=board)
             if "score" in info:
                 result_fens.append(
                     [input[0], input[1], info["score"].pov(board.turn).mate()]
