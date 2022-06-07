@@ -1,0 +1,1 @@
+python matecheck.py --stockfish ./stockfish --nodes 1000000
