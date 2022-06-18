@@ -3,7 +3,8 @@ import argparse
 import concurrent.futures
 import chess.engine
 import chess
-from multiprocessing import freeze_support
+from time import time
+from multiprocessing import freeze_support, cpu_count
 
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
@@ -60,24 +61,29 @@ if __name__ == "__main__":
                 fens.append([m.group(1), int(m.group(2))])
     
     print("FENs loaded...")
-    print("Mate track started...")
     
     numfen = len(fens)
-    fenschunked = list(chunks(fens, 10))
+    workers = cpu_count()
+    fw_ratio = numfen/(4 * workers)
+    fenschunked = list(chunks(fens, max(1, int(fw_ratio))))
+
+    print("\nMatetrack started...")
+    
     res = []
     count = 0;
+    t0 = time()
+    print("\rProgress: 0%", end="")
     if True:
         with concurrent.futures.ProcessPoolExecutor() as e:
             results = e.map(ana.analyze_fens, fenschunked)
             for r in results:
-                count += 10
-                print("\rProgress: %d%%" % (count * 100 / numfen), end="")
+                count += fw_ratio
+                print("\rProgress: %d%%" % min(count * 100 / numfen, 100), end="")
                 res = res + r
-        print("\n")
+    print("\nCompleted in:", str(time() - t0) + " seconds\n" ) 
         
     mates = 0
     bestmates = 0
-    bettermates = 0
     for r in res:
         if not r[2]:
             continue
