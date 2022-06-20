@@ -6,6 +6,7 @@ import chess
 from time import time
 from multiprocessing import freeze_support, cpu_count
 
+
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
@@ -22,7 +23,9 @@ class Analyser:
         engine = chess.engine.SimpleEngine.popen_uci(self.engine)
         for input in fens:
             board = chess.Board(input[0])
-            info = engine.analyse(board, chess.engine.Limit(nodes=self.nodes), game=board)
+            info = engine.analyse(
+                board, chess.engine.Limit(nodes=self.nodes), game=board
+            )
             if "score" in info:
                 result_fens.append(
                     [input[0], input[1], info["score"].pov(board.turn).mate()]
@@ -34,11 +37,15 @@ class Analyser:
 
         return result_fens
 
+
 if __name__ == "__main__":
     freeze_support()
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--stockfish", type=str, default="./stockfish", help="Name of the stockfish binary"
+        "--stockfish",
+        type=str,
+        default="./stockfish",
+        help="Name of the stockfish binary",
     )
     parser.add_argument("--nodes", type=int, default=1000000, help="nodes per pos")
     args = parser.parse_args()
@@ -47,7 +54,7 @@ if __name__ == "__main__":
 
     p = re.compile("([0-8a-zA-Z/\- ]*) bm #([0-9\-]*);")
     fens = []
-    
+
     print("Loading FENs...")
 
     with open(
@@ -59,18 +66,18 @@ if __name__ == "__main__":
                 print("---------------------> IGNORING : ", line)
             else:
                 fens.append([m.group(1), int(m.group(2))])
-    
+
     print("FENs loaded...")
-    
+
     numfen = len(fens)
     workers = cpu_count()
-    fw_ratio = numfen/(4 * workers)
+    fw_ratio = numfen / (4 * workers)
     fenschunked = list(chunks(fens, max(1, int(fw_ratio))))
 
     print("\nMatetrack started...")
-    
+
     res = []
-    count = 0;
+    count = 0
     t0 = time()
     print("\rProgress: 0%", end="")
     if True:
@@ -80,8 +87,8 @@ if __name__ == "__main__":
                 count += fw_ratio
                 print("\rProgress: %d%%" % min(count * 100 / numfen, 100), end="")
                 res = res + r
-    print("\nCompleted in:", str(time() - t0) + " seconds\n" ) 
-        
+    print("\nCompleted in:", str(time() - t0) + " seconds\n")
+
     mates = 0
     bestmates = 0
     for r in res:
