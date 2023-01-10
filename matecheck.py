@@ -5,7 +5,7 @@ import chess.engine
 import chess
 from time import time
 from multiprocessing import freeze_support, cpu_count
-
+from tqdm import tqdm
 
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
@@ -77,17 +77,16 @@ if __name__ == "__main__":
     print("\nMatetrack started...")
 
     res = []
-    count = 0
-    t0 = time()
-    print("\rProgress: 0%", end="")
-    if True:
+    futures = []
+    
+    with tqdm(total=len(fenschunked), smoothing=0, miniters=1) as pbar:
         with concurrent.futures.ProcessPoolExecutor() as e:
-            results = e.map(ana.analyze_fens, fenschunked)
-            for r in results:
-                count += fw_ratio
-                print("\rProgress: %d%%" % min(count * 100 / numfen, 100), end="")
-                res = res + r
-    print("\nCompleted in:", str(time() - t0) + " seconds\n")
+            for entry in fenschunked:
+                futures.append(e.submit(ana.analyze_fens, entry))
+
+            for future in concurrent.futures.as_completed(futures):
+                pbar.update(1)
+                res = res + future.result()
 
     mates = 0
     bestmates = 0
