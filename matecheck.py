@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     ana = Analyser(args.stockfish, args.nodes)
 
-    p = re.compile("([0-8a-zA-Z/\- ]*) bm #([0-9\-]*);")
+    p = re.compile("([0-8a-zA-Z/\- ]*); bm #([0-9\-]*);")
     fens = []
 
     print("Loading FENs...")
