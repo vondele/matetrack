@@ -1,9 +1,11 @@
 #  Track the evolution of Stockfish mate finding effectiveness 
 
-track the performance of [official Stockfish](https://github.com/official-stockfish/Stockfish)
+Track the performance of [official Stockfish](https://github.com/official-stockfish/Stockfish)
 in finding the best mates.
 
-Based on the 6566 mate problems in `ChestUCI_23102018.epd`
+Based on the 6561 mate problems in [`matetrack.epd`](matetrack.epd), the
+successor to `ChestUCI_23102018.epd`, ranging from mate in 1 (#1) to #126 for 
+positions with between 4 and 32 pieces.
 
 Recent results
 <p align="center">

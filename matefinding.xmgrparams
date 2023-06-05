@@ -178,7 +178,7 @@ with g0
     title font 0
     title size 1.500000
     title color 1
-    subtitle "Best mates found with 1M nodes per position on ChestUCI_23102018.epd"
+    subtitle "Best mates found with 1M nodes per position on matetrack.epd"
     subtitle font 0
     subtitle size 1.000000
     subtitle color 1

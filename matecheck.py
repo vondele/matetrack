@@ -7,6 +7,7 @@ from time import time
 from multiprocessing import freeze_support, cpu_count
 from tqdm import tqdm
 
+
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
@@ -58,7 +59,7 @@ if __name__ == "__main__":
     print("Loading FENs...")
 
     with open(
-        "ChestUCI_23102018.epd", "r", encoding="utf-8-sig", errors="surrogateescape"
+        "matetrack.epd", "r", encoding="utf-8-sig", errors="surrogateescape"
     ) as f:
         for line in f:
             m = p.match(line)
@@ -78,7 +79,7 @@ if __name__ == "__main__":
 
     res = []
     futures = []
-    
+
     with tqdm(total=len(fenschunked), smoothing=0, miniters=1) as pbar:
         with concurrent.futures.ProcessPoolExecutor() as e:
             for entry in fenschunked:
