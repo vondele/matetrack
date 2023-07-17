@@ -39,7 +39,7 @@ do
       git checkout $rev >& checkout2.log
       epoch=`git show --pretty=fuller --date=short $rev | grep 'CommitDate' | awk '{print $NF}'`
       make clean >& clean.log
-      make -j ARCH=x86-64-modern profile-build >& make.log
+      CXXFLAGS='-march=native' make -j ARCH=x86-64-avx2 profile-build >& make.log
       mv stockfish ../..
       cd ../..
 
