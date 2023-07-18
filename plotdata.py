@@ -53,7 +53,7 @@ class matedata:
             )
             ax.legend()
         else:
-            d = list(range(1, -plotStart + 1))
+            d = list(range(plotStart + 1, 1))
             ax2 = ax.twinx()
             dotSize, lineWidth = 20, 0.5
             ax2.scatter(d, m, label="mates", color=mateColor, s=dotSize)
