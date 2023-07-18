@@ -55,7 +55,12 @@ do
       epoch=`git show --pretty=fuller --date=iso-strict $rev | grep 'CommitDate' | awk '{print $NF}'`
       tag=`echo "$tags" | grep $rev | sed 's/.*\///'`
       make clean >& clean.log
-      CXXFLAGS='-march=native' make -j ARCH=x86-64-avx2 profile-build >& make.log
+      arch=x86-64-avx2
+      # for very old revisions, we need to fall back to x86-64-modern
+      if ! grep -q "$arch" Makefile; then
+         arch=x86-64-modern
+      fi
+      CXXFLAGS='-march=native' make -j ARCH=$arch profile-build >& make.log
       mv stockfish ../..
       cd ../..
 
