@@ -1,8 +1,4 @@
-import re
-import argparse
-import concurrent.futures
-import chess.engine
-import chess
+import argparse, re, concurrent.futures, chess, chess.engine
 from time import time
 from multiprocessing import freeze_support, cpu_count
 from tqdm import tqdm
@@ -22,17 +18,13 @@ class Analyser:
     def analyze_fens(self, fens):
         result_fens = []
         engine = chess.engine.SimpleEngine.popen_uci(self.engine)
-        for input in fens:
-            board = chess.Board(input[0])
+        for fen, bm in fens:
+            board = chess.Board(fen)
             info = engine.analyse(
                 board, chess.engine.Limit(nodes=self.nodes), game=board
             )
-            if "score" in info:
-                result_fens.append(
-                    [input[0], input[1], info["score"].pov(board.turn).mate()]
-                )
-            else:
-                result_fens.append([input[0], input[1], None])
+            m = info["score"].pov(board.turn).mate() if "score" in info else None
+            result_fens.append((fen, bm, m))
 
         engine.quit()
 
@@ -41,32 +33,37 @@ class Analyser:
 
 if __name__ == "__main__":
     freeze_support()
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--stockfish",
-        type=str,
-        default="./stockfish",
-        help="Name of the stockfish binary",
+    parser = argparse.ArgumentParser(
+        description="Check how many (best) mates an engine finds in e.g. matetrack.epd.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--nodes", type=int, default=1000000, help="nodes per pos")
+    parser.add_argument(
+        "--engine",
+        default="./stockfish",
+        help="name of the engine binary",
+    )
+    parser.add_argument("--nodes", type=int, default=10**6, help="nodes per position")
+    parser.add_argument(
+        "--epdFile",
+        default="matetrack.epd",
+        help="file containing the positions and their mate scores",
+    )
     args = parser.parse_args()
 
-    ana = Analyser(args.stockfish, args.nodes)
+    ana = Analyser(args.engine, args.nodes)
 
-    p = re.compile("([0-8a-zA-Z/\- ]*) bm #([0-9\-]*);")
+    p = re.compile("([0-9a-zA-Z/\- ]*) bm #([0-9\-]*);")
     fens = []
 
     print("Loading FENs...")
 
-    with open(
-        "matetrack.epd", "r", encoding="utf-8-sig", errors="surrogateescape"
-    ) as f:
+    with open(args.epdFile) as f:
         for line in f:
             m = p.match(line)
             if not m:
                 print("---------------------> IGNORING : ", line)
             else:
-                fens.append([m.group(1), int(m.group(2))])
+                fens.append((m.group(1), int(m.group(2))))
 
     print("FENs loaded...")
 
@@ -87,18 +84,16 @@ if __name__ == "__main__":
 
             for future in concurrent.futures.as_completed(futures):
                 pbar.update(1)
-                res = res + future.result()
+                res += future.result()
 
-    mates = 0
-    bestmates = 0
-    for r in res:
-        if not r[2]:
-            continue
-        mates = mates + 1
-        if abs(r[1]) == abs(r[2]):
-            bestmates = bestmates + 1
+    mates = bestmates = 0
+    for _, bestmate, mate in res:
+        if mate is not None:
+            mates += 1
+            if mate == bestmate:
+                bestmates += 1
 
-    print("Using %s with %d nodes" % (args.stockfish, args.nodes))
+    print("Using %s with %d nodes" % (args.engine, args.nodes))
     print("Total fens:   ", numfen)
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
