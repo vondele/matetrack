@@ -26,12 +26,13 @@ revs=`git rev-list --reverse dd9cf305816c84c2acfa11cae09a31c4d77cc5a5^..HEAD |\
       grep -v 7f4de0196b8169e3d0deef75bfcfff6d10166d99 |\
       grep -v cddc8d4546ab0d7b63081cb75cbca66b9c68628b |\
       grep -v 4a7b8180ecaef7d164fa53a1d545372df1173596`
+tags=`git ls-remote --quiet --tags | grep -E "sf_[0-9]+(\.[0-9]+)?"`
 cd ../..
 
 csv=matetrack$nodes.csv
 new=new.csv
 if [[ ! -f $csv ]]; then
-  echo "Commit Date,Commit SHA,Number of positions,Number of mates,Number of best mates" > $csv
+  echo "Commit Date,Commit SHA,Number of positions,Number of mates,Number of best mates,Release tag" > $csv
 fi
 if [[ -f $new ]]; then
   rm $new
@@ -48,13 +49,14 @@ do
        cd Stockfish/src
        git checkout $rev >& checkout2.log
        epoch=`git show --pretty=fuller --date=iso-strict $rev | grep 'CommitDate' | awk '{print $NF}'`
+       tag=`echo "$tags" | grep $rev | sed 's/.*\///'`
        cd ../..
 
        # collect results for this revision
        total=`grep "Total fens:" $file | awk '{print $NF}'`
        mates=`grep "Found mates:" $file | awk '{print $NF}'`
        bmates=`grep "Best mates:" $file | awk '{print $NF}'`
-       echo "$epoch,$rev,$total,$mates,$bmates" >> $new
+       echo "$epoch,$rev,$total,$mates,$bmates,$tag" >> $new
     fi
   fi
 done
