@@ -65,7 +65,7 @@ do
       cd ../..
 
       # run a matecheck round on this binary, being nice to other processes
-      nice python3 matecheck.py --stockfish ./stockfish --nodes $nodes >& $out
+      nice python3 matecheck.py --engine ./stockfish --nodes $nodes >& $out
 
       # collect results for this revision
       total=`grep "Total fens:" $out | awk '{print $NF}'`
