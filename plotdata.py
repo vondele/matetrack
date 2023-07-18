@@ -10,6 +10,7 @@ class matedata:
         self.date = []  # datetime entries
         self.mates = []  # mates
         self.bmates = []  # best mates
+        self.tags = []  # possible release tags
         with open(prefix + ".csv") as f:
             for line in f:
                 line = line.strip()
@@ -21,12 +22,18 @@ class matedata:
                     self.total = int(parts[2])
                     self.mates.append(int(parts[3]))
                     self.bmates.append(int(parts[4]))
+                    self.tags.append(parts[5])
 
     def create_graph(self, plotAll=False):
         # plotAll=True: full history, against date, single y-axis
         # plotAll=False: last 50 commits, against commit, two y-axes
         plotStart = 0 if plotAll else -50
-        d, m, b = self.date[plotStart:], self.mates[plotStart:], self.bmates[plotStart:]
+        d, m, b, t = (
+            self.date[plotStart:],
+            self.mates[plotStart:],
+            self.bmates[plotStart:],
+            self.tags[plotStart:],
+        )
         fig, ax = plt.subplots()
         yColor, dateColor = "black", "black"
         bmateColor, mateColor = "limegreen", "blue"
@@ -57,6 +64,19 @@ class matedata:
             ax.tick_params(axis="y", labelcolor=bmateColor)
             ax2.set_ylabel("# of mates", color=mateColor)
             ax2.tick_params(axis="y", labelcolor=mateColor)
+        # add release labels
+        for i, txt in enumerate(t):
+            if txt:
+                ax.annotate(
+                    txt,
+                    xy=(d[i], b[i]),
+                    xycoords="data",
+                    xytext=(-7, 30 - plotAll * 60),
+                    textcoords="offset points",
+                    arrowprops=dict(arrowstyle="->", color="black"),
+                    fontsize=5,
+                    weight="bold",
+                )
         fig.suptitle("Evolution of SF mate finding effectiveness")
         nodes = self.prefix[9:]  #  this will only work for "matetrackXXX"
         if nodes.endswith("0" * 9):
