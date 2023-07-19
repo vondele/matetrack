@@ -9,9 +9,9 @@ The raw data is available in [`matetrack1000000.csv`](matetrack1000000.csv),
 and visualized in the graphs below.
 
 <p align="center">
-  <img src="matetrack1000000.png?raw=true">
+  <img src="matetrack1000000all.png?raw=true">
 </p>
 
 <p align="center">
-  <img src="matetrack1000000all.png?raw=true">
+  <img src="matetrack1000000.png?raw=true">
 </p>

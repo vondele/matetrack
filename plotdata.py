@@ -38,9 +38,9 @@ class matedata:
         yColor, dateColor = "black", "black"
         bmateColor, mateColor = "limegreen", "blue"
         if plotAll:
-            dotSize = 5
-            ax.scatter(d, m, label="mates", color=mateColor, s=dotSize)
-            ax.scatter(d, b, label="best mates", color=bmateColor, s=dotSize)
+            dotSize = 1
+            bmate = ax.scatter(d, m, label="mates", color=mateColor, s=dotSize)
+            mate = ax.scatter(d, b, label="best mates", color=bmateColor, s=dotSize)
             ax.set_ylabel("# of mates", color=yColor)
             ax.tick_params(axis="y", labelcolor=yColor)
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
@@ -51,19 +51,27 @@ class matedata:
                 rotation_mode="anchor",
                 fontsize=6,
             )
-            ax.legend()
+            ax.grid(alpha=0.4, linewidth=0.5)
+            lgnd = ax.legend()
+            for handle in lgnd.legendHandles:
+                handle.set_sizes([8])
+            bmate.set_alpha(0.25)
+            mate.set_alpha(0.25)
         else:
             d = list(range(plotStart + 1, 1))
             ax2 = ax.twinx()
-            dotSize, lineWidth = 20, 0.5
-            ax2.scatter(d, m, label="mates", color=mateColor, s=dotSize)
-            ax.scatter(d, b, label="best mates", color=bmateColor, s=dotSize)
-            ax2.plot(d, m, color=mateColor, linewidth=lineWidth)
-            ax.plot(d, b, color=bmateColor, linewidth=lineWidth)
+            bmateDotSize, bmateLineWidth = 25, 0.75
+            mateDotSize, mateLineWidth, mateAlpha = 5, 0.2, 0.5
+            ax2.scatter(
+                d, m, label="mates", color=mateColor, s=mateDotSize, alpha=mateAlpha
+            )
+            ax.scatter(d, b, label="best mates", color=bmateColor, s=bmateDotSize)
+            ax2.plot(d, m, color=mateColor, linewidth=mateLineWidth, alpha=mateAlpha)
+            ax.plot(d, b, color=bmateColor, linewidth=bmateLineWidth)
             ax.set_ylabel("# of best mates", color=bmateColor)
             ax.tick_params(axis="y", labelcolor=bmateColor)
             ax2.set_ylabel("# of mates", color=mateColor)
-            ax2.tick_params(axis="y", labelcolor=mateColor)
+            ax2.tick_params(axis="y", labelcolor=mateColor, labelsize=7)
         # add release labels
         for i, txt in enumerate(t):
             if txt:
