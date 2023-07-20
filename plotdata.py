@@ -18,11 +18,11 @@ class matedata:
                     continue
                 if line:
                     parts = line.split(",")
-                    self.date.append(datetime.fromisoformat(parts[0]))
-                    self.total = int(parts[2])
-                    self.mates.append(int(parts[3]))
-                    self.bmates.append(int(parts[4]))
-                    self.tags.append(parts[5])
+                    if parts[2]:  # ignore skipped commits
+                        self.date.append(datetime.fromisoformat(parts[0]))
+                        self.mates.append(int(parts[3]))
+                        self.bmates.append(int(parts[4]))
+                        self.tags.append(parts[5])
 
     def create_graph(self, plotAll=False):
         # plotAll=True: full history, against date, single y-axis
@@ -58,7 +58,7 @@ class matedata:
             bmate.set_alpha(0.25)
             mate.set_alpha(0.25)
         else:
-            d = list(range(plotStart + 1, 1))
+            d = list(range(1-len(d), 1))
             ax2 = ax.twinx()
             bmateDotSize, bmateLineWidth = 25, 0.75
             mateDotSize, mateLineWidth, mateAlpha = 5, 0.2, 0.5
@@ -86,7 +86,7 @@ class matedata:
                     weight="bold",
                 )
         fig.suptitle("Evolution of SF mate finding effectiveness")
-        nodes = self.prefix[9:]  #  this will only work for "matetrackXXX"
+        nodes = self.prefix[len(self.prefix.rstrip("0123456789")) :]
         if nodes.endswith("0" * 9):
             nodes = nodes[:-9] + "G"  #  :)
         elif nodes.endswith("0" * 6):
