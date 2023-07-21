@@ -69,8 +69,8 @@ if __name__ == "__main__":
 
     numfen = len(fens)
     workers = cpu_count()
-    fw_ratio = numfen / (4 * workers)
-    fenschunked = list(chunks(fens, max(1, int(fw_ratio))))
+    fw_ratio = numfen // (4 * workers)
+    fenschunked = list(chunks(fens, max(1, fw_ratio)))
 
     print("\nMatetrack started...")
 
@@ -88,7 +88,7 @@ if __name__ == "__main__":
 
     mates = bestmates = 0
     for _, bestmate, mate in res:
-        if mate is not None:
+        if mate is not None and mate * bestmate > 0:
             mates += 1
             if mate == bestmate:
                 bestmates += 1
