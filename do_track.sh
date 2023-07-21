@@ -5,8 +5,17 @@ set -e
 
 echo "started at: " `date`
 
-# use 1M nodes for each position
+# the repo displays all the revisions from sf_7 to now, excluding some commits
+sf7=dd9cf305816c84c2acfa11cae09a31c4d77cc5a5
+firstrev=$sf7
+lastrev=HEAD
+exclude=exclude_commits.sha
+
+# the repo uses 1M nodes for each position
 nodes=1000000
+
+# check if we run with the repo values
+[ "$firstrev" = "$sf7" ] && [ "$lastrev" = "HEAD" ] && [ "$nodes" = "1000000" ] && repo=yes || repo=no
 
 # clone SF as needed, download an old, non-embedded master net as well
 if [[ ! -e Stockfish ]]; then
@@ -14,24 +23,24 @@ if [[ ! -e Stockfish ]]; then
    wget https://tests.stockfishchess.org/api/nn/nn-82215d0fd0df.nnue
 fi
 
-# update SF and get sorted revision list (exclude non-compiling commits)
+# update SF, get a sorted revision list and all the release tags
 cd Stockfish/src
 git checkout master >& checkout.log
 git fetch origin  >& fetch.log
 git pull >& pull.log
-revs=`git rev-list --reverse dd9cf305816c84c2acfa11cae09a31c4d77cc5a5^..HEAD |\
-      grep -v 44c320a572188b5875291103edb344c584b91d19 |\
-      grep -v bdeda52efd55c97d0f5da908267c01f973371e5d |\
-      grep -v fbb2ffacfdf10fc37d8ee2d2093b2cec629f6067 |\
-      grep -v 7f4de0196b8169e3d0deef75bfcfff6d10166d99 |\
-      grep -v cddc8d4546ab0d7b63081cb75cbca66b9c68628b |\
-      grep -v 4a7b8180ecaef7d164fa53a1d545372df1173596`
+revs=`git rev-list --reverse $firstrev^..$lastrev`
 tags=`git ls-remote --quiet --tags | grep -E "sf_[0-9]+(\.[0-9]+)?"`
 cd ../..
 
-csv=matetrack$nodes.csv  # list of previously computed results
-new=new$nodes.csv        # temporary list of newly computed results
-out=out.tmp              # file for output from matecheck.py
+# use compact file names for the repo
+if [ "$repo" = "yes" ]; then
+   csv=matetrack$nodes.csv  # list of previously computed results
+   new=new$nodes.csv        # temporary list of newly computed results
+else
+   csv=matetrack_"$firstrev"_"$lastrev"_"$nodes".csv
+   new=new_"$firstrev"_"$lastrev"_"$nodes".csv
+fi
+out=out.tmp                 # file for output from matecheck.py
 
 # if necessary, create a new csv file with the correct header
 if [[ ! -f $csv ]]; then
@@ -44,33 +53,40 @@ if [[ -f $new ]]; then
    python3 plotdata.py $csv
 fi
 
-# go over the revision list and compute missing results if necessary
+# go over the revision list and obtain missing results if necessary
 for rev in $revs
 do
    if ! grep -q "$rev" "$csv"; then
-      echo "running matecheck on revision $rev "
-      # compile revision and get binary
       cd Stockfish/src
       git checkout $rev >& checkout2.log
       epoch=`git show --pretty=fuller --date=iso-strict $rev | grep 'CommitDate' | awk '{print $NF}'`
       tag=`echo "$tags" | grep $rev | sed 's/.*\///'`
-      make clean >& clean.log
-      arch=x86-64-avx2
-      # for very old revisions, we need to fall back to x86-64-modern
-      if ! grep -q "$arch" Makefile; then
-         arch=x86-64-modern
+      if ! grep -q "$rev" "../../$exclude"; then
+         echo "running matecheck on revision $rev "
+
+         # compile revision and get binary
+         make clean >& clean.log
+         arch=x86-64-avx2
+         # for very old revisions, we need to fall back to x86-64-modern
+         if ! grep -q "$arch" Makefile; then
+            arch=x86-64-modern
+         fi
+         CXXFLAGS='-march=native' make -j ARCH=$arch profile-build >& make.log
+         mv stockfish ../..
+         cd ../..
+
+         # run a matecheck round on this binary, being nice to other processes
+         nice python3 matecheck.py --engine ./stockfish --nodes $nodes >& $out
+
+         # collect results for this revision
+         total=`grep "Total fens:" $out | awk '{print $NF}'`
+         mates=`grep "Found mates:" $out | awk '{print $NF}'`
+         bmates=`grep "Best mates:" $out | awk '{print $NF}'`
+      else
+         echo "skipping non-compiling revision $rev "
+         cd ../..
+         total= mates= bmates=
       fi
-      CXXFLAGS='-march=native' make -j ARCH=$arch profile-build >& make.log
-      mv stockfish ../..
-      cd ../..
-
-      # run a matecheck round on this binary, being nice to other processes
-      nice python3 matecheck.py --engine ./stockfish --nodes $nodes >& $out
-
-      # collect results for this revision
-      total=`grep "Total fens:" $out | awk '{print $NF}'`
-      mates=`grep "Found mates:" $out | awk '{print $NF}'`
-      bmates=`grep "Best mates:" $out | awk '{print $NF}'`
       echo "$epoch,$rev,$total,$mates,$bmates,$tag" >> $new
    fi
 done
@@ -80,8 +96,10 @@ if [[ -f $new ]]; then
    python3 plotdata.py $csv
 fi
 
-git add $csv matetrack$nodes.png matetrack"$nodes"all.png
-git diff --staged --quiet || git commit -m "Update results"
-git push origin master >& push.log
+if [ "$repo" = "yes" ]; then
+   git add $csv matetrack$nodes.png matetrack"$nodes"all.png
+   git diff --staged --quiet || git commit -m "Update results"
+   git push origin master >& push.log
+fi
 
 echo "ended at: " `date`
