@@ -63,7 +63,7 @@ do
       cd Stockfish/src
       git checkout $rev >& checkout2.log
       epoch=`git show --pretty=fuller --date=iso-strict $rev | grep 'CommitDate' | awk '{print $NF}'`
-      tag=`echo "$tags" | grep $rev | sed 's/.*\///'`
+      tag=`echo "$tags" | grep $rev | sed 's/.*\///' | sed 's/sf_5\^{}/sf_5/'`
 
       # check if revision SHA is in non-comment section of exclude file
       if ! sed 's/#.*//' "../../$exclude" | grep -q "$rev"; then

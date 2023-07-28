@@ -58,7 +58,7 @@ class matedata:
             bmate.set_alpha(0.25)
             mate.set_alpha(0.25)
         else:
-            d = list(range(1-len(d), 1))
+            d = list(range(1 - len(d), 1))
             ax2 = ax.twinx()
             bmateDotSize, bmateLineWidth = 25, 0.75
             mateDotSize, mateLineWidth, mateAlpha = 5, 0.2, 0.5
@@ -75,11 +75,12 @@ class matedata:
         # add release labels
         for i, txt in enumerate(t):
             if txt:
+                shortArrow = txt in ["sf_13", "sf_14.1"]
                 ax.annotate(
                     txt,
                     xy=(d[i], b[i]),
                     xycoords="data",
-                    xytext=(-7, 30 - plotAll * 60),
+                    xytext=(-7, 30 - plotAll * (60 - shortArrow * 5)),
                     textcoords="offset points",
                     arrowprops=dict(arrowstyle="->", color="black"),
                     fontsize=5,
