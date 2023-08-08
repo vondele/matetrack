@@ -10,6 +10,7 @@ sf7=dd9cf305816c84c2acfa11cae09a31c4d77cc5a5
 firstrev=$sf7
 lastrev=HEAD
 exclude=exclude_commits.sha
+nnuefile=nn-82215d0fd0df.nnue  # a non-embedded master net
 
 # the repo uses 1M nodes for each position
 nodes=1000000
@@ -17,10 +18,12 @@ nodes=1000000
 # check if we run with the repo values
 [ "$firstrev" = "$sf7" ] && [ "$lastrev" = "HEAD" ] && [ "$nodes" = "1000000" ] && repo=yes || repo=no
 
-# clone SF as needed, download an old, non-embedded master net as well
+# clone SF (and download an old, non-embedded master net) as needed
 if [[ ! -e Stockfish ]]; then
    git clone https://github.com/official-stockfish/Stockfish.git
-   wget https://tests.stockfishchess.org/api/nn/nn-82215d0fd0df.nnue
+fi
+if [[ ! -f $nnuefile ]]; then
+   wget https://tests.stockfishchess.org/api/nn/$nnuefile
 fi
 
 # update SF, get a sorted revision list and all the release tags
@@ -61,7 +64,9 @@ do
       git checkout $rev >& checkout2.log
       epoch=`git show --pretty=fuller --date=iso-strict $rev | grep 'CommitDate' | awk '{print $NF}'`
       tag=`echo "$tags" | grep $rev | sed 's/.*\///'`
-      if ! grep -q "$rev" "../../$exclude"; then
+
+      # check if revision SHA is in non-comment section of exclude file
+      if ! sed 's/#.*//' "../../$exclude" | grep -q "$rev"; then
          echo "running matecheck on revision $rev "
 
          # compile revision and get binary
@@ -83,7 +88,7 @@ do
          mates=`grep "Found mates:" $out | awk '{print $NF}'`
          bmates=`grep "Best mates:" $out | awk '{print $NF}'`
       else
-         echo "skipping non-compiling revision $rev "
+         echo "skipping non-viable revision $rev "
          cd ../..
          total= mates= bmates=
       fi
