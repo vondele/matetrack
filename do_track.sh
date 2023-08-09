@@ -6,8 +6,8 @@ set -e
 echo "started at: " `date`
 
 # the repo displays all the revisions from sf_4 to now, excluding some commits
-sf4=4d120ee02edff250a6661e63d913e70efc37e2b6
-firstrev=$sf4
+sf3=aa2368a6878a867fe63247ee2adf2fde3dfe22be
+firstrev=$sf3
 lastrev=HEAD
 exclude=exclude_commits.sha
 nnuefile=nn-82215d0fd0df.nnue  # a non-embedded master net
@@ -16,7 +16,7 @@ nnuefile=nn-82215d0fd0df.nnue  # a non-embedded master net
 nodes=1000000
 
 # check if we run with the repo values
-[ "$firstrev" = "$sf4" ] && [ "$lastrev" = "HEAD" ] && [ "$nodes" = "1000000" ] && repo=yes || repo=no
+[ "$firstrev" = "$sf3" ] && [ "$lastrev" = "HEAD" ] && [ "$nodes" = "1000000" ] && repo=yes || repo=no
 
 # clone SF (and download an old, non-embedded master net) as needed
 if [[ ! -e Stockfish ]]; then
