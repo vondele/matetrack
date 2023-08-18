@@ -87,6 +87,11 @@ do
          total=`grep "Total fens:" $out | awk '{print $NF}'`
          mates=`grep "Found mates:" $out | awk '{print $NF}'`
          bmates=`grep "Best mates:" $out | awk '{print $NF}'`
+
+         # save incorrect and better mates for possible debugging
+         if grep -q "\(Wrong\|Better\) mates:" $out; then
+           mv $out out$nodes.$rev
+         fi
       else
          echo "skipping non-viable revision $rev "
          cd ../..
