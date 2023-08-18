@@ -65,7 +65,7 @@ if __name__ == "__main__":
             else:
                 fens.append((m.group(1), int(m.group(2))))
 
-    print("FENs loaded...")
+    print(f"{len(fens)} FENs loaded...")
 
     numfen = len(fens)
     workers = cpu_count()
@@ -86,14 +86,25 @@ if __name__ == "__main__":
                 pbar.update(1)
                 res += future.result()
 
-    mates = bestmates = 0
-    for _, bestmate, mate in res:
-        if mate is not None and mate * bestmate > 0:
-            mates += 1
-            if mate == bestmate:
-                bestmates += 1
+    mates = bestmates = bettermates = wrongmates = 0
+    for fen, bestmate, mate in res:
+        if mate is not None:
+            if mate * bestmate > 0:
+                mates += 1
+                if mate == bestmate:
+                    bestmates += 1
+                elif abs(mate) < abs(bestmate):
+                    print(f'Found mate #{mate} (better) for FEN "{fen}".')
+                    bettermates += 1
+            else:
+                print(f'Found mate #{mate} (wrong sign) for FEN "{fen}".')
+                wrongmates += 1
 
-    print("Using %s with %d nodes" % (args.engine, args.nodes))
+    print("\nUsing %s with %d nodes" % (args.engine, args.nodes))
     print("Total fens:   ", numfen)
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
+    if bettermates:
+        print("Better mates: ", bettermates)
+    if wrongmates:
+        print("Wrong mates:  ", wrongmates)
