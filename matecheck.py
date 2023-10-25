@@ -2,6 +2,7 @@ import argparse, re, concurrent.futures, chess, chess.engine
 from time import time
 from multiprocessing import freeze_support, cpu_count
 from tqdm import tqdm
+import os
 
 
 def chunks(lst, n):
@@ -44,6 +45,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("--nodes", type=int, default=10**6, help="nodes per position")
     parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=os.cpu_count(),
+        help="Concurrency, default cpu_count().",
+    )
+    parser.add_argument(
         "--epdFile",
         default="matetrack.epd",
         help="file containing the positions and their mate scores",
@@ -78,7 +85,7 @@ if __name__ == "__main__":
     futures = []
 
     with tqdm(total=len(fenschunked), smoothing=0, miniters=1) as pbar:
-        with concurrent.futures.ProcessPoolExecutor() as e:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=args.concurrency) as e:
             for entry in fenschunked:
                 futures.append(e.submit(ana.analyze_fens, entry))
 
