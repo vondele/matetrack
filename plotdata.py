@@ -72,6 +72,7 @@ class matedata:
             ax.tick_params(axis="y", labelcolor=bmateColor)
             ax2.set_ylabel("# of mates", color=mateColor)
             ax2.tick_params(axis="y", labelcolor=mateColor, labelsize=7)
+
         # add release labels
         for i, txt in enumerate(t):
             if txt:
