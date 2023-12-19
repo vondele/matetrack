@@ -12,13 +12,16 @@ def chunks(lst, n):
 
 
 class Analyser:
-    def __init__(self, engine, nodes):
+    def __init__(self, engine, nodes, hash):
         self.engine = engine
         self.nodes = nodes
+        self.hash = hash
 
     def analyze_fens(self, fens):
         result_fens = []
         engine = chess.engine.SimpleEngine.popen_uci(self.engine)
+        if self.hash is not None:
+            engine.configure({"Hash": self.hash})
         for fen, bm in fens:
             board = chess.Board(fen)
             info = engine.analyse(
@@ -43,7 +46,8 @@ if __name__ == "__main__":
         default="./stockfish",
         help="name of the engine binary",
     )
-    parser.add_argument("--nodes", type=int, default=10**6, help="nodes per position")
+    parser.add_argument("--nodes", type=str, default="10**6", help="nodes per position")
+    parser.add_argument("--hash", type=int, help="hash table size in MB")
     parser.add_argument(
         "--concurrency",
         type=int,
@@ -56,8 +60,9 @@ if __name__ == "__main__":
         help="file containing the positions and their mate scores",
     )
     args = parser.parse_args()
+    args.nodes = eval(args.nodes)
 
-    ana = Analyser(args.engine, args.nodes)
+    ana = Analyser(args.engine, args.nodes, args.hash)
 
     p = re.compile("([0-9a-zA-Z/\- ]*) bm #([0-9\-]*);")
     fens = []
@@ -107,7 +112,10 @@ if __name__ == "__main__":
                 print(f'Found mate #{mate} (wrong sign) for FEN "{fen}".')
                 wrongmates += 1
 
-    print("\nUsing %s with %d nodes" % (args.engine, args.nodes))
+    print(
+        f"\nUsing {args.engine} with {args.nodes} nodes"
+        + (f" and {args.hash}MB hash" if args.hash is not None else "")
+    )
     print("Total fens:   ", numfen)
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
