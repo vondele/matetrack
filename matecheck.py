@@ -12,9 +12,9 @@ def chunks(lst, n):
 
 
 class Analyser:
-    def __init__(self, engine, nodes, hash):
+    def __init__(self, engine, nodes, depth, time, hash):
         self.engine = engine
-        self.nodes = nodes
+        self.limit = chess.engine.Limit(nodes=nodes, depth=depth, time=time)
         self.hash = hash
 
     def analyze_fens(self, fens):
@@ -24,9 +24,7 @@ class Analyser:
             engine.configure({"Hash": self.hash})
         for fen, bm in fens:
             board = chess.Board(fen)
-            info = engine.analyse(
-                board, chess.engine.Limit(nodes=self.nodes), game=board
-            )
+            info = engine.analyse(board, self.limit, game=board)
             m = info["score"].pov(board.turn).mate() if "score" in info else None
             result_fens.append((fen, bm, m))
 
@@ -46,13 +44,21 @@ if __name__ == "__main__":
         default="./stockfish",
         help="name of the engine binary",
     )
-    parser.add_argument("--nodes", type=str, default="10**6", help="nodes per position")
+    parser.add_argument(
+        "--nodes",
+        type=str,
+        help="nodes limit per position, default: 10**6 without other limits, None otherwise.",
+    )
+    parser.add_argument("--depth", type=int, help="depth limit per position")
+    parser.add_argument(
+        "--time", type=float, help="time limit (in seconds) per position"
+    )
     parser.add_argument("--hash", type=int, help="hash table size in MB")
     parser.add_argument(
         "--concurrency",
         type=int,
         default=os.cpu_count(),
-        help="Concurrency, default cpu_count().",
+        help="concurrency, default: cpu_count().",
     )
     parser.add_argument(
         "--epdFile",
@@ -60,9 +66,13 @@ if __name__ == "__main__":
         help="file containing the positions and their mate scores",
     )
     args = parser.parse_args()
-    args.nodes = eval(args.nodes)
+    if args.nodes is None and args.depth is None and args.time is None:
+        args.nodes = 10**6
+    else:
+        if args.nodes is not None:
+            args.nodes = eval(args.nodes)
 
-    ana = Analyser(args.engine, args.nodes, args.hash)
+    ana = Analyser(args.engine, args.nodes, args.depth, args.time, args.hash)
 
     p = re.compile("([0-9a-zA-Z/\- ]*) bm #([0-9\-]*);")
     fens = []
@@ -84,7 +94,19 @@ if __name__ == "__main__":
     fw_ratio = numfen // (4 * workers)
     fenschunked = list(chunks(fens, max(1, fw_ratio)))
 
-    print("\nMatetrack started...")
+    limits = [
+        ("nodes", args.nodes),
+        ("depth", args.depth),
+        ("time", args.time),
+        ("hash", args.hash),
+    ]
+    msg = (
+        args.engine
+        + " with "
+        + " ".join([f"--{k} {v}" for k, v in limits if v is not None])
+    )
+
+    print(f"\nMatetrack started for {msg} ...")
 
     res = []
     futures = []
@@ -112,10 +134,7 @@ if __name__ == "__main__":
                 print(f'Found mate #{mate} (wrong sign) for FEN "{fen}".')
                 wrongmates += 1
 
-    print(
-        f"\nUsing {args.engine} with {args.nodes} nodes"
-        + (f" and {args.hash}MB hash" if args.hash is not None else "")
-    )
+    print(f"\nUsing {msg}")
     print("Total fens:   ", numfen)
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
