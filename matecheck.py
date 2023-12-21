@@ -47,7 +47,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--nodes",
         type=str,
-        help="nodes limit per position, default: 10**6 without other limits, None otherwise.",
+        help="nodes limit per position, default: 10**6 without other limits, otherwise None",
     )
     parser.add_argument("--depth", type=int, help="depth limit per position")
     parser.add_argument(
@@ -58,7 +58,7 @@ if __name__ == "__main__":
         "--concurrency",
         type=int,
         default=os.cpu_count(),
-        help="concurrency, default: cpu_count().",
+        help="concurrency, default: cpu_count()",
     )
     parser.add_argument(
         "--epdFile",
@@ -68,9 +68,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.nodes is None and args.depth is None and args.time is None:
         args.nodes = 10**6
-    else:
-        if args.nodes is not None:
-            args.nodes = eval(args.nodes)
+    elif args.nodes is not None:
+        args.nodes = eval(args.nodes)
 
     ana = Analyser(args.engine, args.nodes, args.depth, args.time, args.hash)
 
