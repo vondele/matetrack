@@ -11,6 +11,10 @@ def chunks(lst, n):
         yield lst[i : i + n]
 
 
+def plies_to_checkmate(bm):
+    return 2 * bm - 1 if bm > 0 else -2 * bm
+
+
 class Analyser:
     def __init__(self, engine, nodes, depth, time, hash):
         self.engine = engine
@@ -26,7 +30,8 @@ class Analyser:
             board = chess.Board(fen)
             info = engine.analyse(board, self.limit, game=board)
             m = info["score"].pov(board.turn).mate() if "score" in info else None
-            result_fens.append((fen, bm, m))
+            pv = [m.uci() for m in info["pv"]] if "pv" in info else None
+            result_fens.append((fen, bm, m, pv))
 
         engine.quit()
 
@@ -119,8 +124,8 @@ if __name__ == "__main__":
                 pbar.update(1)
                 res += future.result()
 
-    mates = bestmates = bettermates = wrongmates = 0
-    for fen, bestmate, mate in res:
+    mates = bestmates = bettermates = wrongmates = fullpv = 0
+    for fen, bestmate, mate, pv in res:
         if mate is not None:
             if mate * bestmate > 0:
                 mates += 1
@@ -128,15 +133,22 @@ if __name__ == "__main__":
                     bestmates += 1
                 elif abs(mate) < abs(bestmate):
                     print(f'Found mate #{mate} (better) for FEN "{fen}".')
+                    if pv is not None:
+                        print("PV: ", " ".join(pv))
                     bettermates += 1
+                if pv is not None and len(pv) == plies_to_checkmate(mate):
+                    fullpv += 1
             else:
                 print(f'Found mate #{mate} (wrong sign) for FEN "{fen}".')
+                if pv is not None:
+                    print("PV: ", " ".join(pv))
                 wrongmates += 1
 
     print(f"\nUsing {msg}")
     print("Total fens:   ", numfen)
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
+    print(f"Complete PVs:  {fullpv}/{mates} ({fullpv / mates * 100:.1f}%)")
     if bettermates:
         print("Better mates: ", bettermates)
     if wrongmates:
