@@ -19,7 +19,8 @@ and visualized in the graphs below.
 ### List of available test suites
 
 * `ChestUCI_23102018.epd`: the original suite derived from publicly available
-`ChestUCI.epd` files. It contains 6561 positions, with some wrongly classified
+`ChestUCI.epd` files, see
+[FishCooking](https://groups.google.com/g/fishcooking/c/lh1jTS4U9LU/m/zrvoYQZUCQAJ). It contains 6561 positions, with some wrongly classified
 mates, one draw and some illegal positions.
 * **`matetrack.epd`**: The successor to `ChestUCI_23102018.epd`, with all illegal positions removed and all known errors corrected. The plots shown above are based on this file. It contains 6560 mate problems, ranging from mate in 1 (#1) to #126 for positions with between 4 and 32 pieces. In 26 positions the side to move is going to get mated.
 * `matedtrack.epd`: Derived from `matetrack.epd` by applying a best move in all those positions, where the winning side is to move, and where a best move is known. The order of the positions in `matedtrack.epd` corresponds 1:1 to the order in `matetrack.epd`. So the new test suite still contains 6560 mate problems,
