@@ -148,7 +148,8 @@ if __name__ == "__main__":
     print("Total fens:   ", numfen)
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
-    print(f"Complete PVs:  {fullpv}/{mates} ({fullpv / mates * 100:.1f}%)")
+    if mates:
+        print(f"Complete PVs:  {fullpv}/{mates} ({fullpv / mates * 100:.1f}%)")
     if bettermates:
         print("Better mates: ", bettermates)
     if wrongmates:
