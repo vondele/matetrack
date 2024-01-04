@@ -36,13 +36,19 @@ class Analyser:
 if __name__ == "__main__":
     freeze_support()
     parser = argparse.ArgumentParser(
-        description="Check how many (best) mates an engine finds in e.g. matetrack.epd.",
+        description="Check how many (best) mates an engine finds in e.g. matetrack.epd. By default this script takes the (subjective) point of view of most AB engines: reporting a mate score for the side to move means this is currently the best line it has found, and in general it can guarantee to achieve the reported result, but there may be better lines. In particular, reporting a losing mate in a drawn or won position may happen by design, and so is not considered a mistake.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
         "--engine",
         default="./stockfish",
         help="name of the engine binary",
+    )
+    parser.add_argument(
+        "--POV",
+        choices=["subjective", "objective"],
+        default="subjective",
+        help='subjective: "better" means faster win or slower loss, "wrong" means loss reported in a won position; objective: "better" means shorter mate, "wrong" means any mate with wrong sign',
     )
     parser.add_argument(
         "--nodes",
@@ -67,7 +73,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     if args.nodes is None and args.depth is None and args.time is None:
-        args.nodes = 10**6
+        args.nodes = 10 ** 6
     elif args.nodes is not None:
         args.nodes = eval(args.nodes)
 
@@ -120,18 +126,29 @@ if __name__ == "__main__":
                 res += future.result()
 
     mates = bestmates = bettermates = wrongmates = 0
+    showPOV = False
     for fen, bestmate, mate in res:
         if mate is not None:
             if mate * bestmate > 0:
                 mates += 1
                 if mate == bestmate:
                     bestmates += 1
-                elif abs(mate) < abs(bestmate):
+                elif (
+                    args.POV == "subjective"
+                    and mate < bestmate
+                    or args.POV == "objective"
+                    and abs(mate) < abs(bestmate)
+                ):
                     print(f'Found mate #{mate} (better) for FEN "{fen}".')
                     bettermates += 1
-            else:
+            elif args.POV == "objective" or mate >= 0:
                 print(f'Found mate #{mate} (wrong sign) for FEN "{fen}".')
                 wrongmates += 1
+            if mate < 0 and mate != bestmate:
+                showPOV = True
+
+    if showPOV:
+        msg += f" --POV {args.POV}"
 
     print(f"\nUsing {msg}")
     print("Total fens:   ", numfen)
