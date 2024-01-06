@@ -15,6 +15,25 @@ def plies_to_checkmate(bm):
     return 2 * bm - 1 if bm > 0 else -2 * bm
 
 
+def pv_status(fen, bm, pv):
+    # check if the given pv (list of uci moves) leads to checkmate #bm
+    if len(pv) < plies_to_checkmate(bm):
+        return "short"
+    board = chess.Board(fen)
+    try:
+        for move in pv[:-2]:
+            board.push(chess.Move.from_uci(move))
+        if board.can_claim_draw():
+            return "draw"
+        for move in pv[-2:]:
+            board.push(chess.Move.from_uci(move))
+        if board.is_checkmate():
+            return "ok"
+    except Exception as ex:
+        return f"error {ex}"
+    return "wrong"
+
+
 class Analyser:
     def __init__(self, engine, nodes, depth, time, hash):
         self.engine = engine
@@ -30,7 +49,7 @@ class Analyser:
             board = chess.Board(fen)
             info = engine.analyse(board, self.limit, game=board)
             m = info["score"].pov(board.turn).mate() if "score" in info else None
-            pv = [m.uci() for m in info["pv"]] if "pv" in info else None
+            pv = [m.uci() for m in info["pv"]] if "pv" in info else []
             result_fens.append((fen, bm, m, pv))
 
         engine.quit()
@@ -133,14 +152,17 @@ if __name__ == "__main__":
                     bestmates += 1
                 elif abs(mate) < abs(bestmate):
                     print(f'Found mate #{mate} (better) for FEN "{fen}".')
-                    if pv is not None:
+                    if pv:
                         print("PV: ", " ".join(pv))
                     bettermates += 1
-                if pv is not None and len(pv) == plies_to_checkmate(mate):
+                pvstatus = pv_status(fen, mate, pv)
+                if pvstatus == "ok":
                     fullpv += 1
+                elif pvstatus != "short":
+                    print(f"PV status {pvstatus} for PV: ", " ".join(pv))
             else:
                 print(f'Found mate #{mate} (wrong sign) for FEN "{fen}".')
-                if pv is not None:
+                if pv:
                     print("PV: ", " ".join(pv))
                 wrongmates += 1
 
