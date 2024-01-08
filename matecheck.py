@@ -153,17 +153,17 @@ if __name__ == "__main__":
                 elif abs(mate) < abs(bestmate):
                     print(f'Found mate #{mate} (better) for FEN "{fen}".')
                     if pv:
-                        print("PV: ", " ".join(pv))
+                        print("PV:", " ".join(pv))
                     bettermates += 1
                 pvstatus = pv_status(fen, mate, pv)
                 if pvstatus == "ok":
                     fullpv += 1
                 elif pvstatus != "short":
-                    print(f"PV status {pvstatus} for PV: ", " ".join(pv))
+                    print(f"PV status {pvstatus} for PV:", " ".join(pv))
             else:
                 print(f'Found mate #{mate} (wrong sign) for FEN "{fen}".')
                 if pv:
-                    print("PV: ", " ".join(pv))
+                    print("PV:", " ".join(pv))
                 wrongmates += 1
 
     print(f"\nUsing {msg}")
