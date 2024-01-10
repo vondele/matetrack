@@ -2,7 +2,6 @@ import argparse, re, concurrent.futures, chess, chess.engine
 from time import time
 from multiprocessing import freeze_support, cpu_count
 from tqdm import tqdm
-import os
 
 
 def chunks(lst, n):
@@ -35,16 +34,19 @@ def pv_status(fen, bm, pv):
 
 
 class Analyser:
-    def __init__(self, engine, nodes, depth, time, hash):
+    def __init__(self, engine, nodes, depth, time, hash, threads):
         self.engine = engine
         self.limit = chess.engine.Limit(nodes=nodes, depth=depth, time=time)
         self.hash = hash
+        self.threads = threads
 
     def analyze_fens(self, fens):
         result_fens = []
         engine = chess.engine.SimpleEngine.popen_uci(self.engine)
         if self.hash is not None:
             engine.configure({"Hash": self.hash})
+        if self.threads is not None:
+            engine.configure({"Threads": self.threads})
         for fen, bm in fens:
             board = chess.Board(fen)
             info = engine.analyse(board, self.limit, game=board)
@@ -79,10 +81,15 @@ if __name__ == "__main__":
     )
     parser.add_argument("--hash", type=int, help="hash table size in MB")
     parser.add_argument(
+        "--threads",
+        type=int,
+        help="number of threads per position (values > 1 may lead to non-deterministic results)",
+    )
+    parser.add_argument(
         "--concurrency",
         type=int,
-        default=os.cpu_count(),
-        help="concurrency, default: cpu_count()",
+        default=cpu_count(),
+        help="total number of threads script may use, default: cpu_count()",
     )
     parser.add_argument(
         "--epdFile",
@@ -95,7 +102,9 @@ if __name__ == "__main__":
     elif args.nodes is not None:
         args.nodes = eval(args.nodes)
 
-    ana = Analyser(args.engine, args.nodes, args.depth, args.time, args.hash)
+    ana = Analyser(
+        args.engine, args.nodes, args.depth, args.time, args.hash, args.threads
+    )
 
     p = re.compile("([0-9a-zA-Z/\- ]*) bm #([0-9\-]*);")
     fens = []
@@ -113,7 +122,7 @@ if __name__ == "__main__":
     print(f"{len(fens)} FENs loaded...")
 
     numfen = len(fens)
-    workers = cpu_count()
+    workers = args.concurrency // (args.threads if args.threads else 1)
     fw_ratio = numfen // (4 * workers)
     fenschunked = list(chunks(fens, max(1, fw_ratio)))
 
@@ -122,6 +131,7 @@ if __name__ == "__main__":
         ("depth", args.depth),
         ("time", args.time),
         ("hash", args.hash),
+        ("threads", args.threads),
     ]
     msg = (
         args.engine
@@ -135,13 +145,15 @@ if __name__ == "__main__":
     futures = []
 
     with tqdm(total=len(fenschunked), smoothing=0, miniters=1) as pbar:
-        with concurrent.futures.ProcessPoolExecutor(max_workers=args.concurrency) as e:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as e:
             for entry in fenschunked:
                 futures.append(e.submit(ana.analyze_fens, entry))
 
             for future in concurrent.futures.as_completed(futures):
                 pbar.update(1)
                 res += future.result()
+
+    print("")
 
     mates = bestmates = bettermates = wrongmates = fullpv = 0
     for fen, bestmate, mate, pv in res:
