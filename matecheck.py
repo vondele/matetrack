@@ -123,6 +123,9 @@ if __name__ == "__main__":
 
     numfen = len(fens)
     workers = args.concurrency // (args.threads if args.threads else 1)
+    assert (
+        workers > 0
+    ), f"Need concurrency >= threads, but concurrency = {args.concurrency} and threads = {args.threads}."
     fw_ratio = numfen // (4 * workers)
     fenschunked = list(chunks(fens, max(1, fw_ratio)))
 
