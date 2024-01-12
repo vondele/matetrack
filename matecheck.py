@@ -138,6 +138,8 @@ if __name__ == "__main__":
     ]
     msg = (
         args.engine
+        + " on "
+        + args.epdFile
         + " with "
         + " ".join([f"--{k} {v}" for k, v in limits if v is not None])
     )
