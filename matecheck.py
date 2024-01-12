@@ -176,7 +176,10 @@ if __name__ == "__main__":
                 if pvstatus == "ok":
                     fullpv += 1
                 elif pvstatus != "short":
-                    print(f"PV status {pvstatus} for PV:", " ".join(pv))
+                    print(
+                        f'Found mate #{mate} with PV status "{pvstatus}" for FEN "{fen}" with bm #{bestmate}.'
+                    )
+                    print("PV:", " ".join(pv))
             else:
                 print(
                     f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
