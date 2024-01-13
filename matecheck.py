@@ -123,6 +123,9 @@ if __name__ == "__main__":
 
     numfen = len(fens)
     workers = args.concurrency // (args.threads if args.threads else 1)
+    assert (
+        workers > 0
+    ), f"Need concurrency >= threads, but concurrency = {args.concurrency} and threads = {args.threads}."
     fw_ratio = numfen // (4 * workers)
     fenschunked = list(chunks(fens, max(1, fw_ratio)))
 
@@ -135,6 +138,8 @@ if __name__ == "__main__":
     ]
     msg = (
         args.engine
+        + " on "
+        + args.epdFile
         + " with "
         + " ".join([f"--{k} {v}" for k, v in limits if v is not None])
     )
@@ -163,7 +168,9 @@ if __name__ == "__main__":
                 if mate == bestmate:
                     bestmates += 1
                 elif abs(mate) < abs(bestmate):
-                    print(f'Found mate #{mate} (better) for FEN "{fen}".')
+                    print(
+                        f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.'
+                    )
                     if pv:
                         print("PV:", " ".join(pv))
                     bettermates += 1
@@ -171,9 +178,14 @@ if __name__ == "__main__":
                 if pvstatus == "ok":
                     fullpv += 1
                 elif pvstatus != "short":
-                    print(f"PV status {pvstatus} for PV:", " ".join(pv))
+                    print(
+                        f'Found mate #{mate} with PV status "{pvstatus}" for FEN "{fen}" with bm #{bestmate}.'
+                    )
+                    print("PV:", " ".join(pv))
             else:
-                print(f'Found mate #{mate} (wrong sign) for FEN "{fen}".')
+                print(
+                    f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
+                )
                 if pv:
                     print("PV:", " ".join(pv))
                 wrongmates += 1
