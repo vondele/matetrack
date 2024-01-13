@@ -10,14 +10,13 @@ def chunks(lst, n):
         yield lst[i : i + n]
 
 
-def plies_to_checkmate(bm):
-    return 2 * bm - 1 if bm > 0 else -2 * bm
-
-
-def pv_status(fen, bm, pv):
-    # check if the given pv (list of uci moves) leads to checkmate #bm
-    if len(pv) < plies_to_checkmate(bm):
+def pv_status(fen, mate, pv):
+    # check if the given pv (list of uci moves) leads to checkmate #mate
+    plies_to_checkmate = 2 * mate - 1 if mate > 0 else -2 * mate
+    if len(pv) < plies_to_checkmate:
         return "short"
+    if len(pv) > plies_to_checkmate:
+        return "long"
     board = chess.Board(fen)
     try:
         for move in pv[:-2]:
