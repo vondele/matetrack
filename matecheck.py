@@ -33,11 +33,14 @@ def pv_status(fen, mate, pv):
 
 
 class Analyser:
-    def __init__(self, engine, nodes, depth, time, hash, threads):
-        self.engine = engine
-        self.limit = chess.engine.Limit(nodes=nodes, depth=depth, time=time)
-        self.hash = hash
-        self.threads = threads
+    def __init__(self, args):
+        self.engine = args.engine
+        self.limit = chess.engine.Limit(
+            nodes=args.nodes, depth=args.depth, time=args.time
+        )
+        self.hash = args.hash
+        self.threads = args.threads
+        self.syzygyPath = args.syzygyPath
 
     def analyze_fens(self, fens):
         result_fens = []
@@ -46,6 +49,8 @@ class Analyser:
             engine.configure({"Hash": self.hash})
         if self.threads is not None:
             engine.configure({"Threads": self.threads})
+        if self.syzygyPath is not None:
+            engine.configure({"SyzygyPath": self.syzygyPath})
         for fen, bm in fens:
             board = chess.Board(fen)
             info = engine.analyse(board, self.limit, game=board)
@@ -84,6 +89,7 @@ if __name__ == "__main__":
         type=int,
         help="number of threads per position (values > 1 may lead to non-deterministic results)",
     )
+    parser.add_argument("--syzygyPath", help="path to syzygy EGTBs")
     parser.add_argument(
         "--concurrency",
         type=int,
@@ -101,15 +107,12 @@ if __name__ == "__main__":
     elif args.nodes is not None:
         args.nodes = eval(args.nodes)
 
-    ana = Analyser(
-        args.engine, args.nodes, args.depth, args.time, args.hash, args.threads
-    )
-
+    ana = Analyser(args)
     p = re.compile("([0-9a-zA-Z/\- ]*) bm #([0-9\-]*);")
-    fens = []
 
     print("Loading FENs...")
 
+    fens = []
     with open(args.epdFile) as f:
         for line in f:
             m = p.match(line)
@@ -134,6 +137,7 @@ if __name__ == "__main__":
         ("time", args.time),
         ("hash", args.hash),
         ("threads", args.threads),
+        ("syzygyPath", args.syzygyPath),
     ]
     msg = (
         args.engine
