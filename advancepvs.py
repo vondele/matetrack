@@ -48,12 +48,17 @@ if __name__ == "__main__":
     count = 0
     with open(args.outFile, "w") as f:
         for fen, bm, pv, line in fens:
-            if len(pv) > args.plies and (
-                args.mateType == "all"
-                or args.mateType == "won"
-                and bm > 0
-                or args.mateType == "lost"
-                and bm < 0
+            plies_to_checkmate = 2 * bm - 1 if bm > 0 else -2 * bm
+            if (
+                args.plies <= len(pv)
+                and args.plies < plies_to_checkmate
+                and (
+                    args.mateType == "all"
+                    or args.mateType == "won"
+                    and bm > 0
+                    or args.mateType == "lost"
+                    and bm < 0
+                )
             ):
                 board = chess.Board(fen)
                 for move in pv[: args.plies]:
