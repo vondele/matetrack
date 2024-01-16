@@ -80,8 +80,10 @@ for rev in $revs; do
             cd ../..
 
             # run a matecheck round on this binary, being nice to other processes
-            nproc_avail=$(nproc)
-            nproc_use=$((3 * nproc_avail / 4))
+            nproc_use=$(nproc)
+            if [ $nproc_use -gt 1 ]; then
+                nproc_use=$((3 * nproc_use / 4))
+            fi
             nice python3 matecheck.py --engine ./stockfish --nodes $nodes --concurrency $nproc_use >&$out
 
             # collect results for this revision
