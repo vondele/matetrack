@@ -18,12 +18,11 @@ def pv_status(fen, mate, pv):
     if len(pv) > plies_to_checkmate:
         return "long"
     board = chess.Board(fen)
+    losing_side = 1 if mate > 0 else 0
     try:
-        for move in pv[:-2]:
-            board.push(chess.Move.from_uci(move))
-        if board.can_claim_draw():
-            return "draw"
-        for move in pv[-2:]:
+        for ply, move in enumerate(pv):
+            if ply % 2 == losing_side and board.can_claim_draw():
+                return "draw"
             board.push(chess.Move.from_uci(move))
         if board.is_checkmate():
             return "ok"
