@@ -29,3 +29,7 @@ puzzles from the information stored in `matetrackpv.epd`. For example, the file 
 ```shell
 python advancepvs.py --plies 1 --mateType won && sed 's/; PV.*/;/' matedtrackpv.epd > matedtrack.epd
 ```
+Similarly, a file with only `#-10` positions can be created with the command
+```shell
+python advancepvs.py --targetMate -10 && grep 'bm #-10;' matedtrackpv.epd > mate-10.epd
+```
