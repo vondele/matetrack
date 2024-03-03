@@ -23,9 +23,14 @@ if __name__ == "__main__":
         help="number of plies to advance",
     )
     parser.add_argument(
+        "--targetMate",
+        type=int,
+        help="in each position advance enough plies to leave a mate-in-TARGETMATE (overrides --plies)",
+    )
+    parser.add_argument(
         "--mateType",
         choices=["all", "won", "lost"],
-        default="won",
+        default="all",
         help="type of positions to advance from",
     )
     args = parser.parse_args()
@@ -45,13 +50,19 @@ if __name__ == "__main__":
 
     print(f"{len(fens)} FENs loaded...")
 
-    count = 0
+    count, plies = 0, args.plies
     with open(args.outFile, "w") as f:
         for fen, bm, pv, line in fens:
             plies_to_checkmate = 2 * bm - 1 if bm > 0 else -2 * bm
+            if args.targetMate:
+                m = args.targetMate
+                plies4m = 2 * m - 1 if m > 0 else -2 * m
+                plies = plies_to_checkmate - plies4m
+                if plies < 0:
+                    plies = plies_to_checkmate + 1
             if (
-                args.plies <= len(pv)
-                and args.plies < plies_to_checkmate
+                plies <= len(pv)
+                and plies < plies_to_checkmate
                 and (
                     args.mateType == "all"
                     or args.mateType == "won"
@@ -61,14 +72,17 @@ if __name__ == "__main__":
                 )
             ):
                 board = chess.Board(fen)
-                for move in pv[: args.plies]:
+                for move in pv[:plies]:
                     board.push(chess.Move.from_uci(move))
                     bm = -bm + (1 if bm > 0 else 0)
                 fen = board.epd()
-                pv = pv[args.plies :]
+                pv = pv[plies:]
                 f.write(f"{fen} bm #{bm}; PV: {' '.join(pv)};\n")
                 count += 1
             else:
                 f.write(line)
 
-    print(f"Positions in which we advanced {args.plies} plies: ", count)
+    if args.targetMate:
+        print(f"Number of #{args.targetMate} positions created: ", count)
+    else:
+        print(f"Positions in which we advanced {plies} plies: ", count)
