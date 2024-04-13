@@ -162,7 +162,7 @@ if __name__ == "__main__":
 
     print("")
 
-    mates = bestmates = bettermates = wrongmates = fullpv = 0
+    mates = bestmates = bettermates = wrongmates = fullpv = fullbestpv = 0
     for fen, bestmate, mate, pv in res:
         if mate is not None:
             if mate * bestmate > 0:
@@ -179,6 +179,8 @@ if __name__ == "__main__":
                 pvstatus = pv_status(fen, mate, pv)
                 if pvstatus == "ok":
                     fullpv += 1
+                    if mate == bestmate:
+                        fullbestpv += 1
                 elif pvstatus != "short":
                     print(
                         f'Found mate #{mate} with PV status "{pvstatus}" for FEN "{fen}" with bm #{bestmate}.'
@@ -198,6 +200,10 @@ if __name__ == "__main__":
     print("Best mates:   ", bestmates)
     if mates:
         print(f"Complete PVs:  {fullpv}/{mates} ({fullpv / mates * 100:.1f}%)")
+    if bestmates:
+        print(
+            f"Complete best PVs:  {fullbestpv}/{bestmates} ({fullbestpv / bestmates * 100:.1f}%)"
+        )
     if bettermates:
         print("Better mates: ", bettermates)
     if wrongmates:

@@ -22,7 +22,7 @@ class matedata:
                         self.date.append(datetime.fromisoformat(parts[0]))
                         self.mates.append(int(parts[3]))
                         self.bmates.append(int(parts[4]))
-                        self.tags.append(parts[5])
+                        self.tags.append(parts[-1])
 
     def create_graph(self, plotAll=False):
         # plotAll=True: full history, against date, single y-axis
