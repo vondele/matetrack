@@ -47,7 +47,7 @@ out=out.tmp # file for output from matecheck.py
 
 # if necessary, create a new csv file with the correct header
 if [[ ! -f $csv ]]; then
-    echo "Commit Date,Commit SHA,Number of positions,Number of mates,Number of best mates,Release tag" >$csv
+    echo "Commit Date,Commit SHA,Positions,Mates,Best mates,Complete PVs,Complete best PVs,Better mates,Wrong mates,Release tag" >$csv
 fi
 
 # if necessary, merge results from a previous (interrupted) run of this script
@@ -90,6 +90,10 @@ for rev in $revs; do
             total=$(grep "Total fens:" $out | awk '{print $NF}')
             mates=$(grep "Found mates:" $out | awk '{print $NF}')
             bmates=$(grep "Best mates:" $out | awk '{print $NF}')
+            pvs=$(grep "Complete PVs:" $out | awk -F '[ /]' '{print $(NF-2)}')
+            bpvs=$(grep "Complete best PVs:" $out | awk -F '[ /]' '{print $(NF-2)}')
+            better=$(grep "Better mates:" $out | awk '{print $NF}')
+            wrong=$(grep "Wrong mates:" $out | awk '{print $NF}')
 
             # save wrong/better mates and wrong PVs for possible debugging
             if grep -q "\(Wrong\|Better\|PV status\)" $out; then
@@ -98,9 +102,9 @@ for rev in $revs; do
         else
             echo "skipping non-viable revision $rev "
             cd ../..
-            total= mates= bmates=
+            total= mates= bmates= pvs= bpvs= better= wrong=
         fi
-        echo "$epoch,$rev,$total,$mates,$bmates,$tag" >>$new
+        echo "$epoch,$rev,$total,$mates,$bmates,$pvs,$bpvs,$better,$wrong,$tag" >>$new
     fi
 done
 
