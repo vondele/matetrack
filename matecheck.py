@@ -162,7 +162,7 @@ if __name__ == "__main__":
 
     print("")
 
-    mates = bestmates = bettermates = wrongmates = fullpv = fullbestpv = 0
+    mates = bestmates = bettermates = wrongmates = fullpv = fullbestpv = badpv = 0
     for fen, bestmate, mate, pv in res:
         if mate is not None:
             if mate * bestmate > 0:
@@ -186,6 +186,7 @@ if __name__ == "__main__":
                         f'Found mate #{mate} with PV status "{pvstatus}" for FEN "{fen}" with bm #{bestmate}.'
                     )
                     print("PV:", " ".join(pv))
+                    badpv += 1
             else:
                 print(
                     f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
@@ -208,3 +209,5 @@ if __name__ == "__main__":
         print("Better mates: ", bettermates)
     if wrongmates:
         print("Wrong mates:  ", wrongmates)
+    if badpv:
+        print("Bad PVs:      ", badpv)
