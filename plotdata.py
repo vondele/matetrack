@@ -10,6 +10,7 @@ class matedata:
         self.date = []  # datetime entries
         self.mates = []  # mates
         self.bmates = []  # best mates
+        self.issues = []  # sum of better mates, wrong mates, bad PVs
         self.tags = []  # possible release tags
         with open(prefix + ".csv") as f:
             for line in f:
@@ -22,16 +23,20 @@ class matedata:
                         self.date.append(datetime.fromisoformat(parts[0]))
                         self.mates.append(int(parts[3]))
                         self.bmates.append(int(parts[4]))
+                        self.issues.append(
+                            sum(int(parts[i]) for i in [7, 8, 9] if parts[i])
+                        )
                         self.tags.append(parts[-1])
 
     def create_graph(self, plotAll=False):
         # plotAll=True: full history, against date, single y-axis
         # plotAll=False: last 50 commits, against commit, two y-axes
         plotStart = 0 if plotAll else -50
-        d, m, b, t = (
+        d, m, b, i, t = (
             self.date[plotStart:],
             self.mates[plotStart:],
             self.bmates[plotStart:],
+            self.issues[plotStart:],
             self.tags[plotStart:],
         )
         fig, ax = plt.subplots()
@@ -75,6 +80,21 @@ class matedata:
             ax.tick_params(axis="y", labelcolor=bmateColor)
             ax2.set_ylabel("# of mates", color=mateColor)
             ax2.tick_params(axis="y", labelcolor=mateColor, labelsize=7)
+            if sum(i):
+                color, label = (
+                    ("red", "needs investigation")
+                    if i[-1]
+                    else ("orange", "needed investigation")
+                )
+                issueIdx = [idx for idx, val in enumerate(i) if val]
+                ax2.scatter(
+                    [d[idx] for idx in issueIdx],
+                    [m[idx] for idx in issueIdx],
+                    label=label,
+                    color=color,
+                    s=bmateDotSize,
+                )
+                ax2.legend()
 
         # add release labels
         for i, txt in enumerate(t):
