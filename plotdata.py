@@ -112,9 +112,10 @@ class matedata:
                     weight="bold",
                 )
 
-        # GOAT label
+        # add GOAT labels
         for dataset in [self.mates, self.bmates]:
-            maxIndex = dataset.index(max(dataset))
+            maxValue = max(dataset)
+            maxIndex = dataset.index(maxValue)
             usedAxis = ax2 if not plotAll and dataset == self.mates else ax
             usedAxis.annotate(
                 "GOAT",
@@ -129,6 +130,15 @@ class matedata:
                 fontsize=5,
                 weight="bold",
             )
+            if plotAll:
+                continue
+            usedAxis.axhline(
+                maxValue, color="silver", linestyle="dashed", linewidth=0.2
+            )
+            yt = list(usedAxis.get_yticks())
+            if min(dataset[plotStart:]) > yt[1]:
+                yt.pop(0)
+            usedAxis.set_yticks([t for t in yt if t < maxValue] + [maxValue])
 
         fig.suptitle("Evolution of SF mate finding effectiveness")
         nodes = self.prefix[len(self.prefix.rstrip("0123456789")) :]
