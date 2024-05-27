@@ -42,6 +42,7 @@ class matedata:
         fig, ax = plt.subplots()
         yColor, dateColor = "black", "black"
         bmateColor, mateColor = "limegreen", "blue"
+
         if plotAll:
             dotSize = 1
             bmate = ax.scatter(d, m, label="mates", color=mateColor, s=dotSize)
@@ -110,6 +111,25 @@ class matedata:
                     fontsize=5,
                     weight="bold",
                 )
+
+        # GOAT label
+        for dataset in [self.mates, self.bmates]:
+            maxIndex = dataset.index(max(dataset))
+            usedAxis = ax2 if not plotAll and dataset == self.mates else ax
+            usedAxis.annotate(
+                "GOAT",
+                xy=(
+                    self.date[maxIndex] if plotAll else maxIndex - len(dataset),
+                    dataset[maxIndex],
+                ),
+                xycoords="data",
+                xytext=(-30, 0),
+                textcoords="offset points",
+                arrowprops=dict(arrowstyle="->", color="black"),
+                fontsize=5,
+                weight="bold",
+            )
+
         fig.suptitle("Evolution of SF mate finding effectiveness")
         nodes = self.prefix[len(self.prefix.rstrip("0123456789")) :]
         if nodes.endswith("0" * 9):
