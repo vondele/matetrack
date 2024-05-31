@@ -136,9 +136,12 @@ class matedata:
                 maxValue, color="silver", linestyle="dashed", linewidth=0.2
             )
             yt = list(usedAxis.get_yticks())
+            ytGap = yt[1] - yt[0] if len(yt) > 1 else 0
             if min(dataset[plotStart:]) > yt[1]:
                 yt.pop(0)
-            usedAxis.set_yticks([t for t in yt if t < maxValue] + [maxValue])
+            usedAxis.set_yticks(
+                [t for t in yt if t < maxValue - 0.5 * ytGap] + [maxValue]
+            )
 
         fig.suptitle("Evolution of SF mate finding effectiveness")
         nodes = self.prefix[len(self.prefix.rstrip("0123456789")) :]
