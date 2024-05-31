@@ -12,22 +12,22 @@ def chunks(lst, n):
 
 def pv_status(fen, mate, pv):
     # check if the given pv (list of uci moves) leads to checkmate #mate
+    losing_side = 1 if mate > 0 else 0
+    try:
+        board = chess.Board(fen)
+        for ply, move in enumerate(pv):
+            if ply % 2 == losing_side and board.can_claim_draw():
+                return "draw"
+            board.push(chess.Move.from_uci(move))
+    except Exception as ex:
+        return f'error "{ex}"'
     plies_to_checkmate = 2 * mate - 1 if mate > 0 else -2 * mate
     if len(pv) < plies_to_checkmate:
         return "short"
     if len(pv) > plies_to_checkmate:
         return "long"
-    board = chess.Board(fen)
-    losing_side = 1 if mate > 0 else 0
-    try:
-        for ply, move in enumerate(pv):
-            if ply % 2 == losing_side and board.can_claim_draw():
-                return "draw"
-            board.push(chess.Move.from_uci(move))
-        if board.is_checkmate():
-            return "ok"
-    except Exception as ex:
-        return f"error {ex}"
+    if board.is_checkmate():
+        return "ok"
     return "wrong"
 
 
