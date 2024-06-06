@@ -59,7 +59,9 @@ class Analyser:
                 and "upperbound" not in info
             ):
                 m = info["score"].pov(board.turn).mate()
-            pv = [m.uci() for m in info["pv"]] if "pv" in info else []
+                pv = [m.uci() for m in info["pv"]] if "pv" in info else []
+            else:
+                m, pv = None, []
             result_fens.append((fen, bm, m, pv))
 
         engine.quit()
