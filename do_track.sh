@@ -96,8 +96,8 @@ for rev in $revs; do
             wrong=$(grep "Wrong mates:" $out | awk '{print $NF}')
             badpvs=$(grep "Bad PVs:" $out | awk '{print $NF}')
 
-            # save wrong/better mates and wrong PVs for possible debugging
-            if grep -q "\(Wrong\|Better\|PV status\)" $out; then
+            # save wrong/better mates and wrong or incomplete PVs for possible debugging
+            if grep -q "\(Wrong\|Better\|PV status\)" $out || [ "$mates" -ne "$pvs" ] || [ "$bmates" -ne "$bpvs" ]; then
                 mv $out out$nodes.$rev
             fi
         else
