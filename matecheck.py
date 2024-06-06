@@ -43,7 +43,7 @@ class Analyser:
 
     def analyze_fens(self, fens):
         result_fens = []
-        engine = chess.engine.SimpleEngine.popen_uci(self.engine)
+        engine = chess.engine.SimpleEngine.popen_uci(["/bin/sh","./engine_wrap.sh", self.engine])
         if self.hash is not None:
             engine.configure({"Hash": self.hash})
         if self.threads is not None:
