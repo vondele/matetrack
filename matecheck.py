@@ -53,7 +53,12 @@ class Analyser:
         for fen, bm in fens:
             board = chess.Board(fen)
             info = engine.analyse(board, self.limit, game=board)
-            m = info["score"].pov(board.turn).mate() if "score" in info else None
+            if (
+                "score" in info
+                and "lowerbound" not in info
+                and "upperbound" not in info
+            ):
+                m = info["score"].pov(board.turn).mate()
             pv = [m.uci() for m in info["pv"]] if "pv" in info else []
             result_fens.append((fen, bm, m, pv))
 
