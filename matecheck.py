@@ -52,7 +52,13 @@ class Analyser:
             engine.configure({"SyzygyPath": self.syzygyPath})
         for fen, bm in fens:
             board = chess.Board(fen)
-            info = engine.analyse(board, self.limit, game=board)
+            info = {}
+            with engine.analysis(board, self.limit, game=board) as analysis:
+                for line in analysis:
+                    if "score" in line and not (
+                        "upperbound" in line or "lowerbound" in line
+                    ):
+                        info = line
             m = info["score"].pov(board.turn).mate() if "score" in info else None
             pv = [m.uci() for m in info["pv"]] if "pv" in info else []
             result_fens.append((fen, bm, m, pv))
