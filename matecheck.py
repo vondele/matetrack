@@ -190,7 +190,7 @@ if __name__ == "__main__":
                     fullpv += 1
                     if mate == bestmate:
                         fullbestpv += 1
-                elif pvstatus != "short":
+                else:
                     print(
                         f'Found mate #{mate} with PV status "{pvstatus}" for FEN "{fen}" with bm #{bestmate}.'
                     )
@@ -211,11 +211,9 @@ if __name__ == "__main__":
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
     if mates:
-        print(f"Complete PVs:  {fullpv}/{mates} ({fullpv / mates * 100:.1f}%)")
+        print(f"Complete PVs:  {fullpv}/{mates}")
     if bestmates:
-        print(
-            f"Complete best PVs:  {fullbestpv}/{bestmates} ({fullbestpv / bestmates * 100:.1f}%)"
-        )
+        print(f"Complete best PVs:  {fullbestpv}/{bestmates}")
     if bettermates:
         print("Better mates: ", bettermates)
     if wrongmates:
