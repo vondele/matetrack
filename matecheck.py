@@ -190,7 +190,7 @@ if __name__ == "__main__":
                     fullpv += 1
                     if mate == bestmate:
                         fullbestpv += 1
-                elif pvstatus != "short":
+                else:
                     print(
                         f'Found mate #{mate} with PV status "{pvstatus}" for FEN "{fen}" with bm #{bestmate}.'
                     )
