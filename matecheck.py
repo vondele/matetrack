@@ -153,6 +153,9 @@ if __name__ == "__main__":
     )
 
     print(f"\nMatetrack started for {msg} ...")
+    engine = chess.engine.SimpleEngine.popen_uci(args.engine)
+    name = engine.id.get("name", "")
+    engine.quit()
 
     res = []
     futures = []
@@ -202,6 +205,8 @@ if __name__ == "__main__":
                 wrongmates += 1
 
     print(f"\nUsing {msg}")
+    if name:
+        print("Engine ID:    ", name)
     print("Total fens:   ", numfen)
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
