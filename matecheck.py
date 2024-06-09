@@ -1,4 +1,4 @@
-import argparse, collections, re, concurrent.futures, chess, chess.engine
+import argparse, re, concurrent.futures, chess, chess.engine
 from time import time
 from multiprocessing import freeze_support, cpu_count
 from tqdm import tqdm
@@ -52,7 +52,7 @@ class Analyser:
             engine.configure({"SyzygyPath": self.syzygyPath})
         for fen, bm in fens:
             board = chess.Board(fen)
-            queue = collections.deque()
+            pvstatus = {}  #  stores (status, final_line)
             with engine.analysis(board, self.limit, game=board) as analysis:
                 for info in analysis:
                     if "score" in info and not (
@@ -60,8 +60,12 @@ class Analyser:
                     ):
                         m = info["score"].pov(board.turn).mate()
                         pv = [m.uci() for m in info["pv"]] if "pv" in info else []
-                        queue.append((m, pv))
-            result_fens.append((fen, bm, queue))
+                        pvstr = " ".join(pv)
+                        if m and (m, pvstr) not in pvstatus:
+                            pvstatus[m, pvstr] = pv_status(fen, m, pv), False
+            if m:  # if final info line has a mate score, mark it as such
+                pvstatus[m, pvstr] = pvstatus.get((m, pvstr))[0], True
+            result_fens.append((fen, bm, pvstatus))
 
         engine.quit()
 
@@ -178,14 +182,11 @@ if __name__ == "__main__":
 
     mates = bestmates = 0
     issue = {"Better mates": [0, 0], "Wrong mates": [0, 0], "Bad PVs": [0, 0]}
-    for fen, bestmate, queue in res:
+    for fen, bestmate, pvstatus in res:
         found_better = found_wrong = found_badpv = False
-        while queue:
-            mate, pv = queue.popleft()
-            if mate is None:
-                continue
+        for (mate, pv), (status, last_line) in pvstatus.items():
             if mate * bestmate > 0:
-                if not queue:  #  for mate counts use last valid UCI info output
+                if last_line:  #  for mate counts use last valid UCI info output
                     mates += 1
                     if mate == bestmate:
                         bestmates += 1
@@ -197,18 +198,16 @@ if __name__ == "__main__":
                         print(
                             f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.'
                         )
-                        if pv:
-                            print("PV:", " ".join(pv))
-                pvstatus = pv_status(fen, mate, pv)
-                if pvstatus != "ok":
+                        print("PV:", pv)
+                if status != "ok":
                     issue["Bad PVs"][0] += 1
                     if not found_badpv or args.showAllIssues:
                         issue["Bad PVs"][1] += int(not found_badpv)
                         found_badpv = True
                         print(
-                            f'Found mate #{mate} with PV status "{pvstatus}" for FEN "{fen}" with bm #{bestmate}.'
+                            f'Found mate #{mate} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.'
                         )
-                        print("PV:", " ".join(pv))
+                        print("PV:", pv)
             else:
                 issue["Wrong mates"][0] += 1
                 if not found_wrong or args.showAllIssues:
@@ -217,8 +216,7 @@ if __name__ == "__main__":
                     print(
                         f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
                     )
-                    if pv:
-                        print("PV:", " ".join(pv))
+                    print("PV:", pv)
 
     print(f"\nUsing {msg}")
     if name:
