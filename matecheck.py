@@ -1,4 +1,4 @@
-import argparse, re, concurrent.futures, chess, chess.engine
+import argparse, collections, re, concurrent.futures, chess, chess.engine
 from time import time
 from multiprocessing import freeze_support, cpu_count
 from tqdm import tqdm
@@ -52,16 +52,16 @@ class Analyser:
             engine.configure({"SyzygyPath": self.syzygyPath})
         for fen, bm in fens:
             board = chess.Board(fen)
-            info = {}
+            queue = collections.deque()
             with engine.analysis(board, self.limit, game=board) as analysis:
-                for line in analysis:
-                    if "score" in line and not (
-                        "upperbound" in line or "lowerbound" in line
+                for info in analysis:
+                    if "score" in info and not (
+                        "upperbound" in info or "lowerbound" in info
                     ):
-                        info = line
-            m = info["score"].pov(board.turn).mate() if "score" in info else None
-            pv = [m.uci() for m in info["pv"]] if "pv" in info else []
-            result_fens.append((fen, bm, m, pv))
+                        m = info["score"].pov(board.turn).mate()
+                        pv = [m.uci() for m in info["pv"]] if "pv" in info else []
+                        queue.append((m, pv))
+            result_fens.append((fen, bm, queue))
 
         engine.quit()
 
@@ -105,6 +105,11 @@ if __name__ == "__main__":
         "--epdFile",
         default="matetrack.epd",
         help="file containing the positions and their mate scores",
+    )
+    parser.add_argument(
+        "--showAllIssues",
+        action="store_true",
+        help="show all UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue",
     )
     args = parser.parse_args()
     if args.nodes is None and args.depth is None and args.time is None:
@@ -171,52 +176,62 @@ if __name__ == "__main__":
 
     print("")
 
-    mates = bestmates = bettermates = wrongmates = fullpv = fullbestpv = badpv = 0
-    for fen, bestmate, mate, pv in res:
-        if mate is not None:
+    mates = bestmates = 0
+    issue = {"Better mates": [0, 0], "Wrong mates": [0, 0], "Bad PVs": [0, 0]}
+    for fen, bestmate, queue in res:
+        found_better = found_wrong = found_badpv = False
+        while queue:
+            mate, pv = queue.popleft()
+            if mate is None:
+                continue
             if mate * bestmate > 0:
-                mates += 1
-                if mate == bestmate:
-                    bestmates += 1
-                elif abs(mate) < abs(bestmate):
+                if not queue:  #  for mate counts use last valid UCI info output
+                    mates += 1
+                    if mate == bestmate:
+                        bestmates += 1
+                if abs(mate) < abs(bestmate):
+                    issue["Better mates"][0] += 1
+                    if not found_better or args.showAllIssues:
+                        issue["Better mates"][1] += int(not found_better)
+                        found_better = True
+                        print(
+                            f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.'
+                        )
+                        if pv:
+                            print("PV:", " ".join(pv))
+                pvstatus = pv_status(fen, mate, pv)
+                if pvstatus != "ok":
+                    issue["Bad PVs"][0] += 1
+                    if not found_badpv or args.showAllIssues:
+                        issue["Bad PVs"][1] += int(not found_badpv)
+                        found_badpv = True
+                        print(
+                            f'Found mate #{mate} with PV status "{pvstatus}" for FEN "{fen}" with bm #{bestmate}.'
+                        )
+                        print("PV:", " ".join(pv))
+            else:
+                issue["Wrong mates"][0] += 1
+                if not found_wrong or args.showAllIssues:
+                    issue["Wrong mates"][1] += int(not found_wrong)
+                    found_wrong = True
                     print(
-                        f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.'
+                        f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
                     )
                     if pv:
                         print("PV:", " ".join(pv))
-                    bettermates += 1
-                pvstatus = pv_status(fen, mate, pv)
-                if pvstatus == "ok":
-                    fullpv += 1
-                    if mate == bestmate:
-                        fullbestpv += 1
-                else:
-                    print(
-                        f'Found mate #{mate} with PV status "{pvstatus}" for FEN "{fen}" with bm #{bestmate}.'
-                    )
-                    print("PV:", " ".join(pv))
-                    badpv += 1
-            else:
-                print(
-                    f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
-                )
-                if pv:
-                    print("PV:", " ".join(pv))
-                wrongmates += 1
 
     print(f"\nUsing {msg}")
     if name:
         print("Engine ID:    ", name)
-    print("Total fens:   ", numfen)
+    print("Total FENs:   ", numfen)
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
-    if mates:
-        print(f"Complete PVs:  {fullpv}/{mates}")
-    if bestmates:
-        print(f"Complete best PVs:  {fullbestpv}/{bestmates}")
-    if bettermates:
-        print("Better mates: ", bettermates)
-    if wrongmates:
-        print("Wrong mates:  ", wrongmates)
-    if badpv:
-        print("Bad PVs:      ", badpv)
+    if sum([v[0] for v in issue.values()]):
+        print(
+            "\nParsing the engine's full UCI output, the following issues were detected:"
+        )
+        for key, value in issue.items():
+            if value[0]:
+                print(
+                    f"{key}:{' ' * (14 - len(key))}{value[0]}   (from {value[1]} FENs)"
+                )

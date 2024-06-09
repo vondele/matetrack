@@ -15,6 +15,46 @@ and is visualized in the graphs below.
 
 ---
 
+### Usage of `matecheck.py`
+
+```
+usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--concurrency CONCURRENCY] [--epdFile EPDFILE] [--showAllIssues]
+
+Check how many (best) mates an engine finds in e.g. matetrack.epd.
+
+options:
+  -h, --help            show this help message and exit
+  --engine ENGINE       name of the engine binary (default: ./stockfish)
+  --nodes NODES         nodes limit per position, default: 10**6 without other limits, otherwise None (default: None)
+  --depth DEPTH         depth limit per position (default: None)
+  --time TIME           time limit (in seconds) per position (default: None)
+  --hash HASH           hash table size in MB (default: None)
+  --threads THREADS     number of threads per position (values > 1 may lead to non-deterministic results) (default: None)
+  --syzygyPath SYZYGYPATH
+                        path to syzygy EGTBs (default: None)
+  --concurrency CONCURRENCY
+                        total number of threads script may use, default: cpu_count() (default: 8)
+  --epdFile EPDFILE     file containing the positions and their mate scores (default: matetrack.epd)
+  --showAllIssues       show all UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue (default: False)
+```
+
+Sample output:
+```
+Using ./sf16 on matetrack.epd with --nodes 10000
+Engine ID:     Stockfish 16
+Total FENs:    6556
+Found mates:   524
+Best mates:    355
+
+Parsing the engine's full UCI output, the following issues were detected:
+Bad PVs:       773   (from 351 FENs)
+```
+
+Note that the mate counts are out of the total number of FENs, while the
+reported issues cover all the UCI output lines received from the engine.
+Here a "bad" PV may mean that it is too short, too long, allows a draw,
+contains illegal moves or does not end in checkmate.
+
 ### List of available test suites
 
 * `ChestUCI_23102018.epd`: the original suite derived from publicly available `ChestUCI.epd` files, see [FishCooking](https://groups.google.com/g/fishcooking/c/lh1jTS4U9LU/m/zrvoYQZUCQAJ). It contains 6561 positions, with one draw, four positions that are likely draws due to the 50 move rule, some illegal positions and some positions with a sub-optimal or likely incorrect value for the fastest known mate.
