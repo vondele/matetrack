@@ -107,6 +107,11 @@ if __name__ == "__main__":
         default="matetrack.epd",
         help="file containing the positions and their mate scores",
     )
+    parser.add_argument(
+        "--showAllIssues",
+        action="store_true",
+        help="show all UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue",
+    )
     args = parser.parse_args()
     if args.nodes is None and args.depth is None and args.time is None:
         args.nodes = 10**6
@@ -173,8 +178,9 @@ if __name__ == "__main__":
     print("")
 
     mates = bestmates = 0
-    issue = {"Better mates": 0, "Wrong mates": 0, "Bad PVs": 0}
+    issue = {"Better mates": [0, 0], "Wrong mates": [0, 0], "Bad PVs": [0, 0]}
     for fen, bestmate, queue in res:
+        found_better = found_wrong = found_badpv = False
         while queue:
             mate, pv = queue.popleft()
             if mate * bestmate > 0:
@@ -183,37 +189,48 @@ if __name__ == "__main__":
                     if mate == bestmate:
                         bestmates += 1
                 if abs(mate) < abs(bestmate):
+                    issue["Better mates"][0] += 1
+                    if not found_better or args.showAllIssues:
+                        issue["Better mates"][1] += int(not found_better)
+                        found_better = True
+                        print(
+                            f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.'
+                        )
+                        if pv:
+                            print("PV:", " ".join(pv))
+                pvstatus = pv_status(fen, mate, pv)
+                if pvstatus != "ok":
+                    issue["Bad PVs"][0] += 1
+                    if not found_badpv or args.showAllIssues:
+                        issue["Bad PVs"][1] += int(not found_badpv)
+                        found_badpv = True
+                        print(
+                            f'Found mate #{mate} with PV status "{pvstatus}" for FEN "{fen}" with bm #{bestmate}.'
+                        )
+                        print("PV:", " ".join(pv))
+            else:
+                issue["Wrong mates"][0] += 1
+                if not found_wrong or args.showAllIssues:
+                    issue["Wrong mates"][1] += int(not found_wrong)
+                    found_wrong = True
                     print(
-                        f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.'
+                        f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
                     )
                     if pv:
                         print("PV:", " ".join(pv))
-                    issue["Better mates"] += 1
-                pvstatus = pv_status(fen, mate, pv)
-                if pvstatus != "ok":
-                    print(
-                        f'Found mate #{mate} with PV status "{pvstatus}" for FEN "{fen}" with bm #{bestmate}.'
-                    )
-                    print("PV:", " ".join(pv))
-                    issue["Bad PVs"] += 1
-            else:
-                print(
-                    f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
-                )
-                if pv:
-                    print("PV:", " ".join(pv))
-                issue["Wrong mates"] += 1
 
     print(f"\nUsing {msg}")
     if name:
         print("Engine ID:    ", name)
-    print("Total fens:   ", numfen)
+    print("Total FENs:   ", numfen)
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
-    if sum(issue.values()):
+    if sum([v[0] for v in issue.values()]):
         print(
             "\nParsing the engine's full UCI output, the following issues were detected:"
         )
-        for key, count in issue.items():
-            if count:
-                print(key + ":" + " " * (13 - len(key)), count)
+        for key, value in issue.items():
+            if value[0]:
+                print(
+                    f"{key}:{' ' * (14 - len(key))}{value[0]}   (from {value[1]} FENs)"
+                )

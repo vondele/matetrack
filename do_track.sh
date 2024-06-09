@@ -87,12 +87,12 @@ for rev in $revs; do
             nice python3 matecheck.py --engine ./stockfish --nodes $nodes --concurrency $nproc_use >&$out
 
             # collect results for this revision
-            total=$(grep "Total fens:" $out | awk '{print $NF}')
-            mates=$(grep "Found mates:" $out | awk '{print $NF}')
-            bmates=$(grep "Best mates:" $out | awk '{print $NF}')
-            better=$(grep "Better mates:" $out | awk '{print $NF}')
-            wrong=$(grep "Wrong mates:" $out | awk '{print $NF}')
-            badpvs=$(grep "Bad PVs:" $out | awk '{print $NF}')
+            total=$(grep "Total FENs:" $out | awk '{print $3}')
+            mates=$(grep "Found mates:" $out | awk '{print $3}')
+            bmates=$(grep "Best mates:" $out | awk '{print $3}')
+            better=$(grep "Better mates:" $out | awk '{print $3}')
+            wrong=$(grep "Wrong mates:" $out | awk '{print $3}')
+            badpvs=$(grep "Bad PVs:" $out | awk '{print $3}')
 
             # save wrong/better mates and wrong or incomplete PVs for possible debugging
             if grep -q issues $out; then
