@@ -113,7 +113,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--showAllIssues",
         action="store_true",
-        help="show all UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue",
+        help="show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue",
     )
     args = parser.parse_args()
     if args.nodes is None and args.depth is None and args.time is None:
