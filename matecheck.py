@@ -59,9 +59,8 @@ class Analyser:
                         "upperbound" in info or "lowerbound" in info
                     ):
                         m = info["score"].pov(board.turn).mate()
-                        if m:
-                            pv = [m.uci() for m in info["pv"]] if "pv" in info else []
-                            queue.append((m, pv))
+                        pv = [m.uci() for m in info["pv"]] if "pv" in info else []
+                        queue.append((m, pv))
             result_fens.append((fen, bm, queue))
 
         engine.quit()
@@ -183,6 +182,8 @@ if __name__ == "__main__":
         found_better = found_wrong = found_badpv = False
         while queue:
             mate, pv = queue.popleft()
+            if mate is None:
+                continue
             if mate * bestmate > 0:
                 if not queue:  #  for mate counts use last valid UCI info output
                     mates += 1
