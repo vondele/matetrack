@@ -35,7 +35,7 @@ options:
   --concurrency CONCURRENCY
                         total number of threads script may use, default: cpu_count() (default: 8)
   --epdFile EPDFILE     file containing the positions and their mate scores (default: matetrack.epd)
-  --showAllIssues       show all UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue (default: False)
+  --showAllIssues       show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue (default: False)
 ```
 
 Sample output:
@@ -47,7 +47,7 @@ Found mates:   524
 Best mates:    355
 
 Parsing the engine's full UCI output, the following issues were detected:
-Bad PVs:       773   (from 351 FENs)
+Bad PVs:       600   (from 351 FENs)
 ```
 
 Note that the mate counts are out of the total number of FENs, while the
