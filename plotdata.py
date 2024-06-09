@@ -10,7 +10,7 @@ class matedata:
         self.date = []  # datetime entries
         self.mates = []  # mates
         self.bmates = []  # best mates
-        self.issues = []  # sum of better mates, wrong mates, bad PVs, incomplete PVs
+        self.issues = []  # sum of better mates, wrong mates, bad PVs
         self.tags = []  # possible release tags
         with open(prefix + ".csv") as f:
             for line in f:
@@ -24,9 +24,7 @@ class matedata:
                         self.mates.append(int(parts[3]))
                         self.bmates.append(int(parts[4]))
                         self.issues.append(
-                            sum(int(parts[i]) for i in [7, 8, 9] if parts[i])
-                            + int(parts[3] != parts[5])
-                            + int(parts[4] != parts[6])
+                            sum(int(parts[i]) for i in [5, 6, 7] if parts[i])
                         )
                         self.tags.append(parts[-1])
 
