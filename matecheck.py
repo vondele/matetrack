@@ -59,12 +59,14 @@ class Analyser:
                         "upperbound" in info or "lowerbound" in info
                     ):
                         m = info["score"].pov(board.turn).mate()
+                        if m is None:
+                            continue
                         pv = [m.uci() for m in info["pv"]] if "pv" in info else []
                         pvstr = " ".join(pv)
-                        if m and (m, pvstr) not in pvstatus:
+                        if (m, pvstr) not in pvstatus:
                             pvstatus[m, pvstr] = pv_status(fen, m, pv), False
             if m:  # if final info line has a mate score, mark it as such
-                pvstatus[m, pvstr] = pvstatus.get((m, pvstr))[0], True
+                pvstatus[m, pvstr] = pvstatus[m, pvstr][0], True
             result_fens.append((fen, bm, pvstatus))
 
         engine.quit()
