@@ -18,7 +18,10 @@ def pv_status(fen, mate, pv):
         for ply, move in enumerate(pv):
             if ply % 2 == losing_side and board.can_claim_draw():
                 return "draw"
-            board.push(chess.Move.from_uci(move))
+            uci = chess.Move.from_uci(move)
+            if not uci in board.legal_moves:
+                raise Exception(f"illegal move {move} at position {board.epd()}")
+            board.push(uci)
     except Exception as ex:
         return f'error "{ex}"'
     plies_to_checkmate = 2 * mate - 1 if mate > 0 else -2 * mate
