@@ -18,7 +18,7 @@ and is visualized in the graphs below.
 ### Usage of `matecheck.py`
 
 ```
-usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--concurrency CONCURRENCY] [--epdFile EPDFILE] [--showAllIssues]
+usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--concurrency CONCURRENCY] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues]
 
 Check how many (best) mates an engine finds in e.g. matetrack.epd.
 
@@ -28,13 +28,15 @@ options:
   --nodes NODES         nodes limit per position, default: 10**6 without other limits, otherwise None (default: None)
   --depth DEPTH         depth limit per position (default: None)
   --time TIME           time limit (in seconds) per position (default: None)
+  --mate MATE           mate limit per position (a value of 0 will use bm #X as the limit) (default: None)
   --hash HASH           hash table size in MB (default: None)
   --threads THREADS     number of threads per position (values > 1 may lead to non-deterministic results) (default: None)
   --syzygyPath SYZYGYPATH
                         path to syzygy EGTBs (default: None)
   --concurrency CONCURRENCY
                         total number of threads script may use, default: cpu_count() (default: 8)
-  --epdFile EPDFILE     file containing the positions and their mate scores (default: matetrack.epd)
+  --epdFile EPDFILE [EPDFILE ...]
+                        file(s) containing the positions and their mate scores (default: ['matetrack.epd'])
   --showAllIssues       show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue (default: False)
 ```
 
@@ -45,6 +47,8 @@ Engine ID:     Stockfish 16
 Total FENs:    6556
 Found mates:   524
 Best mates:    355
+Found mates nodes searched: 5227851
+Found mates depths reached: 15585
 
 Parsing the engine's full UCI output, the following issues were detected:
 Bad PVs:       600   (from 351 FENs)
