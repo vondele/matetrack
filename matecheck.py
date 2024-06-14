@@ -289,7 +289,7 @@ if __name__ == "__main__":
             if bestnodes[bm]:
                 nl, dl = bestnodes[bm], bestdepth[bm]
                 print(
-                    f"abs(bm) = {bm} - mates: {len(nl)}, nodes (min avg max): {min(nl)} {sum(nl)/len(nl):.0f} {max(nl)}, depth (min avg max): {min(dl)} {sum(dl)/len(dl):.0f} {max(dl)}"
+                    f"abs(bm) = {bm} - mates: {len(nl)}, nodes (min avg max): {min(nl)} {round(sum(nl)/len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl)/len(dl))} {max(dl)}"
                 )
 
     if sum([v[0] for v in issue.values()]):
