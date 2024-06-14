@@ -18,7 +18,7 @@ and is visualized in the graphs below.
 ### Usage of `matecheck.py`
 
 ```
-usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--concurrency CONCURRENCY] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues]
+usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--concurrency CONCURRENCY] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--showAllStats]
 
 Check how many (best) mates an engine finds in e.g. matetrack.epd.
 
