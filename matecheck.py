@@ -142,6 +142,11 @@ if __name__ == "__main__":
         action="store_true",
         help="show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue",
     )
+    parser.add_argument(
+        "--showAllStats",
+        action="store_true",
+        help="show nodes and depth statistics for best mates found (always True if --mate is supplied)",
+    )
     args = parser.parse_args()
     if (
         args.nodes is None
@@ -155,8 +160,6 @@ if __name__ == "__main__":
 
     ana = Analyser(args)
     p = re.compile("([0-9a-zA-Z/\- ]*) bm #([0-9\-]*);")
-
-    print("Loading FENs...")
 
     unlimited = args.nodes is None and args.depth is None and args.time is None
 
@@ -181,9 +184,11 @@ if __name__ == "__main__":
                                 fens[fen] = bm
                     else:
                         fens[fen] = bm
+
+    maxbm = max([abs(bm) for bm in fens.values()])
     fens = list(fens.items())
 
-    print(f"{len(fens)} FENs loaded...")
+    print(f"Loaded {len(fens)} FENs, with max(abs(bm)) = {maxbm}.")
 
     numfen = len(fens)
     workers = args.concurrency // (args.threads if args.threads else 1)
@@ -229,11 +234,11 @@ if __name__ == "__main__":
 
     print("")
 
-    mates = bestmates = totalnodes = totaldepth = 0
+    mates = bestmates = 0
     issue = {"Better mates": [0, 0], "Wrong mates": [0, 0], "Bad PVs": [0, 0]}
+    bestnodes = [[] for _ in range(maxbm + 1)]
+    bestdepth = [[] for _ in range(maxbm + 1)]
     for fen, bestmate, pvstatus, nodes, depth in res:
-        totalnodes += nodes
-        totaldepth += depth
         found_better = found_wrong = found_badpv = False
         for (mate, pv), (status, last_line) in pvstatus.items():
             if mate * bestmate > 0:
@@ -241,6 +246,8 @@ if __name__ == "__main__":
                     mates += 1
                     if mate == bestmate:
                         bestmates += 1
+                        bestnodes[abs(mate)].append(nodes)
+                        bestdepth[abs(mate)].append(depth)
                 if abs(mate) < abs(bestmate):
                     issue["Better mates"][0] += 1
                     if not found_better or args.showAllIssues:
@@ -275,8 +282,16 @@ if __name__ == "__main__":
     print("Total FENs:   ", numfen)
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
-    print("Found mates nodes searched:", totalnodes)
-    print("Found mates depths reached:", totaldepth)
+
+    if args.showAllStats or args.mate is not None:
+        print("\nBest mate statistics:")
+        for bm in range(maxbm + 1):
+            if bestnodes[bm]:
+                nl, dl = bestnodes[bm], bestdepth[bm]
+                print(
+                    f"abs(bm) = {bm} - mates: {len(nl)}, nodes (min avg max): {min(nl)} {sum(nl)/len(nl):.0f} {max(nl)}, depth (min avg max): {min(dl)} {sum(dl)/len(dl):.0f} {max(dl)}"
+                )
+
     if sum([v[0] for v in issue.values()]):
         print(
             "\nParsing the engine's full UCI output, the following issues were detected:"

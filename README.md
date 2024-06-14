@@ -38,6 +38,7 @@ options:
   --epdFile EPDFILE [EPDFILE ...]
                         file(s) containing the positions and their mate scores (default: ['matetrack.epd'])
   --showAllIssues       show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue (default: False)
+  --showAllStats        show nodes and depth statistics for best mates found (always True if --mate is supplied) (default: False)
 ```
 
 Sample output:
@@ -47,8 +48,6 @@ Engine ID:     Stockfish 16
 Total FENs:    6556
 Found mates:   524
 Best mates:    355
-Found mates nodes searched: 5227851
-Found mates depths reached: 15585
 
 Parsing the engine's full UCI output, the following issues were detected:
 Bad PVs:       600   (from 351 FENs)
