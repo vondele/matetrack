@@ -112,8 +112,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--epdFile",
-        default="matetrack.epd",
-        help="file containing the positions and their mate scores",
+        nargs="+",
+        default=["matetrack.epd"],
+        help="file(s) containing the positions and their mate scores",
     )
     parser.add_argument(
         "--showAllIssues",
@@ -131,14 +132,26 @@ if __name__ == "__main__":
 
     print("Loading FENs...")
 
-    fens = []
-    with open(args.epdFile) as f:
-        for line in f:
-            m = p.match(line)
-            if not m:
-                print("---------------------> IGNORING : ", line)
-            else:
-                fens.append((m.group(1), int(m.group(2))))
+    fens = {}
+    for epd in args.epdFile:
+        with open(epd) as f:
+            for line in f:
+                m = p.match(line)
+                if not m:
+                    print("---------------------> IGNORING : ", line)
+                else:
+                    fen, bm = m.group(1), int(m.group(2))
+                    if fen in fens:
+                        bmold = fens[fen]
+                        if bm != bmold:
+                            print(
+                                f'Warning: For duplicate FEN "{fen}" we only keep faster mate between #{bm} and #{bmold}.'
+                            )
+                            if abs(bm) < abs(bmold):
+                                fens[fen] = bm
+                    else:
+                        fens[fen] = bm
+    fens = list(fens.items())
 
     print(f"{len(fens)} FENs loaded...")
 
@@ -161,7 +174,7 @@ if __name__ == "__main__":
     msg = (
         args.engine
         + " on "
-        + args.epdFile
+        + " ".join(args.epdFile)
         + " with "
         + " ".join([f"--{k} {v}" for k, v in limits if v is not None])
     )
