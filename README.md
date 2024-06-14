@@ -77,5 +77,5 @@ python advancepvs.py --targetMate -10 && grep 'bm #-10;' matedtrackpv.epd > mate
 
 Finally, the file `mates2000.epd` has been created with the command
 ```shell
-( grep -v 'bm #-' matetrack.epd | head -n 1000 > mates2000.epd ) && head -n 2000 matedtrack.epd | tail -n 1000 >> mates2000.epd
+( grep -v 'bm #-' matetrack.epd | head -n 1000 > mates2000.epd ) && head -n 2001 matedtrack.epd | tail -n 1001 | uniq >> mates2000.epd
 ```
