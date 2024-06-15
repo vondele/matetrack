@@ -61,7 +61,7 @@ contains illegal moves or does not end in checkmate.
 * **`matetrack.epd`**: The successor to `ChestUCI_23102018.epd`, with all illegal positions removed and all known errors corrected. The plots shown above are based on this file. It contains 6556 mate problems, ranging from mate in 1 (#1) to #126 for positions with between 4 and 32 pieces. In 26 positions the side to move is going to get mated.
 * `matetrackpv.epd`: The same as `matetrack.epd`, but for each position the file also includes a PV leading to the checkmate, if such a PV is known.
 * `matedtrack.epd`: Derived from `matetrackpv.epd` by applying a best move in all those positions, where the winning side is to move, and where a best move is known. The order of the positions in `matedtrack.epd` corresponds 1:1 to the order in `matetrack.epd`. So the new test suite still contains 6556 mate problems, but for 6535 of them the side to move is going to get mated.
-* `mates2000.epd`: A smaller test suite with 2000 positions ranging from #1 to #7. In 1000 positions the side to move is going to get mated.
+* `mates2000.epd`: A smaller test suite with 2000 positions ranging from #1 to #27. A random selection of those positions in `matetrack.epd` and `matedtrack.epd` (895 mate in, 1105 mated in) that could be solved in less than 1M nodes by Stockfish.
 
 ### Automatic creation of new test positions
 
@@ -73,9 +73,4 @@ python advancepvs.py --plies 1 --mateType won && sed 's/; PV.*/;/' matedtrackpv.
 Similarly, a file with only `#-10` positions can be created with the command
 ```shell
 python advancepvs.py --targetMate -10 && grep 'bm #-10;' matedtrackpv.epd > mate-10.epd
-```
-
-Finally, the file `mates2000.epd` has been created with the command
-```shell
-( grep -v 'bm #-' matetrack.epd | head -n 1000 > mates2000.epd ) && head -n 2001 matedtrack.epd | tail -n 1001 | uniq >> mates2000.epd
 ```
