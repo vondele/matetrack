@@ -96,7 +96,7 @@ class Analyser:
 if __name__ == "__main__":
     freeze_support()
     parser = argparse.ArgumentParser(
-        description="Check how many (best) mates an engine finds in e.g. matetrack.epd.",
+        description='Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mate",
         type=int,
-        help="mate limit per position (a value of 0 will use bm #X as the limit)",
+        help="mate limit per position: a value of 0 will use bm #X as the limit, a positive value (in the absence of other limits) means only elegible positions will be analysed",
     )
     parser.add_argument("--hash", type=int, help="hash table size in MB")
     parser.add_argument(
@@ -161,7 +161,9 @@ if __name__ == "__main__":
     ana = Analyser(args)
     p = re.compile("([0-9a-zA-Z/\- ]*) bm #([0-9\-]*);")
 
-    unlimited = args.nodes is None and args.depth is None and args.time is None
+    unlimited = (
+        args.mate and args.nodes is None and args.depth is None and args.time is None
+    )
 
     fens = {}
     for epd in args.epdFile:
@@ -173,7 +175,7 @@ if __name__ == "__main__":
                 else:
                     fen, bm = m.group(1), int(m.group(2))
                     if unlimited and args.mate < abs(bm):
-                        continue
+                        continue  # avoid analyses that cannot terminate
                     if fen in fens:
                         bmold = fens[fen]
                         if bm != bmold:
@@ -185,7 +187,7 @@ if __name__ == "__main__":
                     else:
                         fens[fen] = bm
 
-    maxbm = max([abs(bm) for bm in fens.values()])
+    maxbm = max([abs(bm) for bm in fens.values()]) if fens else 0
     fens = list(fens.items())
 
     print(f"Loaded {len(fens)} FENs, with max(abs(bm)) = {maxbm}.")

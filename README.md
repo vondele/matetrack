@@ -20,7 +20,7 @@ and is visualized in the graphs below.
 ```
 usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--concurrency CONCURRENCY] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--showAllStats]
 
-Check how many (best) mates an engine finds in e.g. matetrack.epd.
+Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".
 
 options:
   -h, --help            show this help message and exit
@@ -28,7 +28,7 @@ options:
   --nodes NODES         nodes limit per position, default: 10**6 without other limits, otherwise None (default: None)
   --depth DEPTH         depth limit per position (default: None)
   --time TIME           time limit (in seconds) per position (default: None)
-  --mate MATE           mate limit per position (a value of 0 will use bm #X as the limit) (default: None)
+  --mate MATE           mate limit per position: a value of 0 will use bm #X as the limit, a positive value (in the absence of other limits) means only elegible positions will be analysed (default: None)
   --hash HASH           hash table size in MB (default: None)
   --threads THREADS     number of threads per position (values > 1 may lead to non-deterministic results) (default: None)
   --syzygyPath SYZYGYPATH
