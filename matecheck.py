@@ -1,4 +1,4 @@
-import argparse, re, concurrent.futures, chess, chess.engine
+import argparse, random, re, concurrent.futures, chess, chess.engine
 from time import time
 from multiprocessing import freeze_support, cpu_count
 from tqdm import tqdm
@@ -189,6 +189,7 @@ if __name__ == "__main__":
 
     maxbm = max([abs(bm) for bm in fens.values()]) if fens else 0
     fens = list(fens.items())
+    random.shuffle(fens)  # try to balance the analysis time across chunks
 
     print(f"Loaded {len(fens)} FENs, with max(abs(bm)) = {maxbm}.")
 
