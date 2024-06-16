@@ -38,8 +38,14 @@ class Analyser:
     def __init__(self, args):
         self.engine = args.engine
         self.limit = chess.engine.Limit(
-            nodes=args.nodes, depth=args.depth, time=args.time
+            nodes=args.nodes,
+            depth=args.depth,
+            time=args.time,
+            mate=args.mate if args.mate else None,
         )
+        self.mate = args.mate
+        if self.mate is not None and self.mate == 0:
+            self.nodes, self.depth, self.time = args.nodes, args.depth, args.time
         self.hash = args.hash
         self.threads = args.threads
         self.syzygyPath = args.syzygyPath
@@ -56,7 +62,13 @@ class Analyser:
         for fen, bm in fens:
             board = chess.Board(fen)
             pvstatus = {}  #  stores (status, final_line)
-            with engine.analysis(board, self.limit, game=board) as analysis:
+            if self.mate is not None and self.mate == 0:
+                limit = chess.engine.Limit(
+                    nodes=self.nodes, depth=self.depth, time=self.time, mate=abs(bm)
+                )
+            else:
+                limit = self.limit
+            with engine.analysis(board, limit, game=board) as analysis:
                 for info in analysis:
                     if "score" in info and not (
                         "upperbound" in info or "lowerbound" in info
@@ -68,9 +80,13 @@ class Analyser:
                         pvstr = " ".join(pv)
                         if (m, pvstr) not in pvstatus:
                             pvstatus[m, pvstr] = pv_status(fen, m, pv), False
+                        nodes = info.get("nodes", 0)
+                        depth = info.get("depth", 0)
             if m:  # if final info line has a mate score, mark it as such
                 pvstatus[m, pvstr] = pvstatus[m, pvstr][0], True
-            result_fens.append((fen, bm, pvstatus))
+            else:
+                nodes = depth = 0
+            result_fens.append((fen, bm, pvstatus, nodes, depth))
 
         engine.quit()
 
@@ -80,7 +96,7 @@ class Analyser:
 if __name__ == "__main__":
     freeze_support()
     parser = argparse.ArgumentParser(
-        description="Check how many (best) mates an engine finds in e.g. matetrack.epd.",
+        description='Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
@@ -96,6 +112,11 @@ if __name__ == "__main__":
     parser.add_argument("--depth", type=int, help="depth limit per position")
     parser.add_argument(
         "--time", type=float, help="time limit (in seconds) per position"
+    )
+    parser.add_argument(
+        "--mate",
+        type=int,
+        help="mate limit per position: a value of 0 will use bm #X as the limit, a positive value (in the absence of other limits) means only elegible positions will be analysed",
     )
     parser.add_argument("--hash", type=int, help="hash table size in MB")
     parser.add_argument(
@@ -121,8 +142,18 @@ if __name__ == "__main__":
         action="store_true",
         help="show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue",
     )
+    parser.add_argument(
+        "--showAllStats",
+        action="store_true",
+        help="show nodes and depth statistics for best mates found (always True if --mate is supplied)",
+    )
     args = parser.parse_args()
-    if args.nodes is None and args.depth is None and args.time is None:
+    if (
+        args.nodes is None
+        and args.depth is None
+        and args.time is None
+        and args.mate is None
+    ):
         args.nodes = 10**6
     elif args.nodes is not None:
         args.nodes = eval(args.nodes)
@@ -130,7 +161,9 @@ if __name__ == "__main__":
     ana = Analyser(args)
     p = re.compile("([0-9a-zA-Z/\- ]*) bm #([0-9\-]*);")
 
-    print("Loading FENs...")
+    unlimited = (
+        args.mate and args.nodes is None and args.depth is None and args.time is None
+    )
 
     fens = {}
     for epd in args.epdFile:
@@ -141,6 +174,8 @@ if __name__ == "__main__":
                     print("---------------------> IGNORING : ", line)
                 else:
                     fen, bm = m.group(1), int(m.group(2))
+                    if unlimited and args.mate < abs(bm):
+                        continue  # avoid analyses that cannot terminate
                     if fen in fens:
                         bmold = fens[fen]
                         if bm != bmold:
@@ -151,9 +186,11 @@ if __name__ == "__main__":
                                 fens[fen] = bm
                     else:
                         fens[fen] = bm
+
+    maxbm = max([abs(bm) for bm in fens.values()]) if fens else 0
     fens = list(fens.items())
 
-    print(f"{len(fens)} FENs loaded...")
+    print(f"Loaded {len(fens)} FENs, with max(abs(bm)) = {maxbm}.")
 
     numfen = len(fens)
     workers = args.concurrency // (args.threads if args.threads else 1)
@@ -167,6 +204,7 @@ if __name__ == "__main__":
         ("nodes", args.nodes),
         ("depth", args.depth),
         ("time", args.time),
+        ("mate", args.mate),
         ("hash", args.hash),
         ("threads", args.threads),
         ("syzygyPath", args.syzygyPath),
@@ -200,7 +238,9 @@ if __name__ == "__main__":
 
     mates = bestmates = 0
     issue = {"Better mates": [0, 0], "Wrong mates": [0, 0], "Bad PVs": [0, 0]}
-    for fen, bestmate, pvstatus in res:
+    bestnodes = [[] for _ in range(maxbm + 1)]
+    bestdepth = [[] for _ in range(maxbm + 1)]
+    for fen, bestmate, pvstatus, nodes, depth in res:
         found_better = found_wrong = found_badpv = False
         for (mate, pv), (status, last_line) in pvstatus.items():
             if mate * bestmate > 0:
@@ -208,6 +248,8 @@ if __name__ == "__main__":
                     mates += 1
                     if mate == bestmate:
                         bestmates += 1
+                        bestnodes[abs(mate)].append(nodes)
+                        bestdepth[abs(mate)].append(depth)
                 if abs(mate) < abs(bestmate):
                     issue["Better mates"][0] += 1
                     if not found_better or args.showAllIssues:
@@ -242,6 +284,16 @@ if __name__ == "__main__":
     print("Total FENs:   ", numfen)
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
+
+    if args.showAllStats or args.mate is not None:
+        print("\nBest mate statistics:")
+        for bm in range(maxbm + 1):
+            if bestnodes[bm]:
+                nl, dl = bestnodes[bm], bestdepth[bm]
+                print(
+                    f"abs(bm) = {bm} - mates: {len(nl)}, nodes (min avg max): {min(nl)} {round(sum(nl)/len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl)/len(dl))} {max(dl)}"
+                )
+
     if sum([v[0] for v in issue.values()]):
         print(
             "\nParsing the engine's full UCI output, the following issues were detected:"
