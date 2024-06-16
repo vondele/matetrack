@@ -189,6 +189,7 @@ if __name__ == "__main__":
 
     maxbm = max([abs(bm) for bm in fens.values()]) if fens else 0
     fens = list(fens.items())
+    random.seed(42)
     random.shuffle(fens)  # try to balance the analysis time across chunks
 
     print(f"Loaded {len(fens)} FENs, with max(abs(bm)) = {maxbm}.")
