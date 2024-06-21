@@ -1,37 +1,15 @@
-import argparse, random, re, concurrent.futures, chess, chess.engine
+import argparse, random, re, concurrent.futures, chess, chess.engine, chess.syzygy
 from time import time
 from multiprocessing import freeze_support, cpu_count
 from tqdm import tqdm
+
+TBPIECES = 7
 
 
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
-
-
-def pv_status(fen, mate, pv):
-    # check if the given pv (list of uci moves) leads to checkmate #mate
-    losing_side = 1 if mate > 0 else 0
-    try:
-        board = chess.Board(fen)
-        for ply, move in enumerate(pv):
-            if ply % 2 == losing_side and board.can_claim_draw():
-                return "draw"
-            uci = chess.Move.from_uci(move)
-            if not uci in board.legal_moves:
-                raise Exception(f"illegal move {move} at position {board.epd()}")
-            board.push(uci)
-    except Exception as ex:
-        return f'error "{ex}"'
-    plies_to_checkmate = 2 * mate - 1 if mate > 0 else -2 * mate
-    if len(pv) < plies_to_checkmate:
-        return "short"
-    if len(pv) > plies_to_checkmate:
-        return "long"
-    if board.is_checkmate():
-        return "ok"
-    return "wrong"
 
 
 class Analyser:
@@ -48,7 +26,67 @@ class Analyser:
             self.nodes, self.depth, self.time = args.nodes, args.depth, args.time
         self.hash = args.hash
         self.threads = args.threads
-        self.syzygyPath = args.syzygyPath
+        self.tb = self.syzygyPath = args.syzygyPath
+        if self.syzygyPath is not None:
+            self.tb = chess.syzygy.open_tablebase(self.syzygyPath)
+        self.minTBscore = args.minTBscore
+
+    def tb_probe(self, board):
+        if (
+            self.tb is None
+            or board.castling_rights
+            or chess.popcount(board.occupied) > TBPIECES
+        ):
+            return None
+        return self.tb.get_wdl(board)
+
+    def pv_status(self, fen, mate, score, pv):
+        # check if the given pv (list of uci moves) leads to checkmate #mate
+        # if mate is None, check if pv leads to claimed TB win/loss
+        losing_side = 1 if (mate and mate > 0) or score > 0 else 0
+        try:
+            board = chess.Board(fen)
+            for ply, move in enumerate(pv):
+                if ply % 2 == losing_side and board.can_claim_draw():
+                    return "draw"
+                # if EGTB is available, probe it to check PV correctness
+                if self.tb is not None:
+                    wdl = self.tb_probe(board)
+                    if wdl is not None:
+                        if abs(wdl) != 2:
+                            return "draw"
+                        if ply % 2 == losing_side and wdl != -2:
+                            return "wrong"
+                        if ply % 2 != losing_side and wdl != 2:
+                            return "wrong"
+                uci = chess.Move.from_uci(move)
+                if not uci in board.legal_moves:
+                    raise Exception(f"illegal move {move} at position {board.epd()}")
+                board.push(uci)
+        except Exception as ex:
+            return f'error "{ex}"'
+
+        if mate:
+            plies_to_checkmate = 2 * mate - 1 if mate > 0 else -2 * mate
+            if len(pv) < plies_to_checkmate:
+                return "short"
+            if len(pv) > plies_to_checkmate:
+                return "long"
+            if board.is_checkmate():
+                return "ok"
+            return "wrong"
+
+        # now check if the leaf node is in EGTB, with the correct result
+        wdl = self.tb_probe(board)
+        if wdl is None:
+            return "short"
+        if abs(wdl) != 2:
+            return "draw"
+        if (ply + 1) % 2 == losing_side and wdl != -2:
+            return "wrong"
+        if (ply + 1) % 2 != losing_side and wdl != 2:
+            return "wrong"
+        return "ok"
 
     def analyze_fens(self, fens):
         result_fens = []
@@ -61,31 +99,38 @@ class Analyser:
             engine.configure({"SyzygyPath": self.syzygyPath})
         for fen, bm in fens:
             board = chess.Board(fen)
-            pvstatus = {}  #  stores (status, final_line)
             if self.mate is not None and self.mate == 0:
                 limit = chess.engine.Limit(
                     nodes=self.nodes, depth=self.depth, time=self.time, mate=abs(bm)
                 )
             else:
                 limit = self.limit
+            pvstatus = {}  #  stores (status, final_line) for (mate, score, pv)
+            m, score, pvstr = None, None, ""
+            nodes = depth = 0
             with engine.analysis(board, limit, game=board) as analysis:
                 for info in analysis:
                     if "score" in info and not (
                         "upperbound" in info or "lowerbound" in info
                     ):
-                        m = info["score"].pov(board.turn).mate()
-                        if m is None:
+                        score = info["score"].pov(board.turn)
+                        m = score.mate()
+                        score = score.score()
+                        if m is None and (
+                            self.syzygyPath is None or abs(score) < self.minTBscore
+                        ):
                             continue
                         pv = [m.uci() for m in info["pv"]] if "pv" in info else []
                         pvstr = " ".join(pv)
-                        if (m, pvstr) not in pvstatus:
-                            pvstatus[m, pvstr] = pv_status(fen, m, pv), False
+                        if (m, score, pvstr) not in pvstatus:
+                            pvstatus[m, score, pvstr] = (
+                                self.pv_status(fen, m, score, pv),
+                                False,
+                            )
                         nodes = info.get("nodes", 0)
                         depth = info.get("depth", 0)
-            if m:  # if final info line has a mate score, mark it as such
-                pvstatus[m, pvstr] = pvstatus[m, pvstr][0], True
-            else:
-                nodes = depth = 0
+            if (m, score, pvstr) in pvstatus:  # mark final info line
+                pvstatus[m, score, pvstr] = pvstatus[m, score, pvstr][0], True
             result_fens.append((fen, bm, pvstatus, nodes, depth))
 
         engine.quit()
@@ -125,6 +170,12 @@ if __name__ == "__main__":
         help="number of threads per position (values > 1 may lead to non-deterministic results)",
     )
     parser.add_argument("--syzygyPath", help="path to syzygy EGTBs")
+    parser.add_argument(
+        "--minTBscore",
+        type=int,
+        help="lowest cp score for a TB win",
+        default=20000 - 246,
+    )
     parser.add_argument(
         "--concurrency",
         type=int,
@@ -238,47 +289,75 @@ if __name__ == "__main__":
 
     print("")
 
-    mates = bestmates = 0
-    issue = {"Better mates": [0, 0], "Wrong mates": [0, 0], "Bad PVs": [0, 0]}
+    mates = bestmates = tbwins = 0
+    issue = {
+        "Better mates": [0, 0],
+        "Wrong mates": [0, 0],
+        "Bad PVs": [0, 0],
+        "Wrong TB score": [0, 0],
+    }
     bestnodes = [[] for _ in range(maxbm + 1)]
     bestdepth = [[] for _ in range(maxbm + 1)]
     for fen, bestmate, pvstatus, nodes, depth in res:
-        found_better = found_wrong = found_badpv = False
-        for (mate, pv), (status, last_line) in pvstatus.items():
-            if mate * bestmate > 0:
-                if last_line:  #  for mate counts use last valid UCI info output
-                    mates += 1
-                    if mate == bestmate:
-                        bestmates += 1
-                        bestnodes[abs(mate)].append(nodes)
-                        bestdepth[abs(mate)].append(depth)
-                if abs(mate) < abs(bestmate):
-                    issue["Better mates"][0] += 1
-                    if not found_better or args.showAllIssues:
-                        issue["Better mates"][1] += int(not found_better)
-                        found_better = True
+        found_better = found_wrong = found_badpv = found_wrong_tb = False
+        for (mate, score, pv), (status, last_line) in pvstatus.items():
+            if mate:
+                if mate * bestmate > 0:
+                    if last_line:  #  for mate counts use last valid UCI info output
+                        mates += 1
+                        if mate == bestmate:
+                            bestmates += 1
+                            bestnodes[abs(mate)].append(nodes)
+                            bestdepth[abs(mate)].append(depth)
+                    if abs(mate) < abs(bestmate):
+                        issue["Better mates"][0] += 1
+                        if not found_better or args.showAllIssues:
+                            issue["Better mates"][1] += int(not found_better)
+                            found_better = True
+                            print(
+                                f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.'
+                            )
+                            print("PV:", pv)
+                    if status != "ok":
+                        issue["Bad PVs"][0] += 1
+                        if not found_badpv or args.showAllIssues:
+                            issue["Bad PVs"][1] += int(not found_badpv)
+                            found_badpv = True
+                            print(
+                                f'Found mate #{mate} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.'
+                            )
+                            print("PV:", pv)
+                else:
+                    issue["Wrong mates"][0] += 1
+                    if not found_wrong or args.showAllIssues:
+                        issue["Wrong mates"][1] += int(not found_wrong)
+                        found_wrong = True
                         print(
-                            f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.'
-                        )
-                        print("PV:", pv)
-                if status != "ok":
-                    issue["Bad PVs"][0] += 1
-                    if not found_badpv or args.showAllIssues:
-                        issue["Bad PVs"][1] += int(not found_badpv)
-                        found_badpv = True
-                        print(
-                            f'Found mate #{mate} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.'
+                            f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
                         )
                         print("PV:", pv)
             else:
-                issue["Wrong mates"][0] += 1
-                if not found_wrong or args.showAllIssues:
-                    issue["Wrong mates"][1] += int(not found_wrong)
-                    found_wrong = True
-                    print(
-                        f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
-                    )
-                    print("PV:", pv)
+                if score * bestmate > 0:
+                    if last_line:
+                        tbwins += 1
+                    if status != "ok":
+                        issue["Bad PVs"][0] += 1
+                        if not found_badpv or args.showAllIssues:
+                            issue["Bad PVs"][1] += int(not found_badpv)
+                            found_badpv = True
+                            print(
+                                f'Found TB score #{score} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.'
+                            )
+                            print("PV:", pv)
+                else:
+                    issue["Wrong TB score"][0] += 1
+                    if not found_wrong_tb or args.showAllIssues:
+                        issue["Wrong TB score"][1] += int(not found_wrong_tb)
+                        found_wrong_tb = True
+                        print(
+                            f'Found TB score #{score} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
+                        )
+                        print("PV:", pv)
 
     print(f"\nUsing {msg}")
     if name:
@@ -286,6 +365,8 @@ if __name__ == "__main__":
     print("Total FENs:   ", numfen)
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
+    if tbwins:
+        print("Found TB wins:", tbwins)
 
     if args.showAllStats or args.mate is not None:
         print("\nBest mate statistics:")
