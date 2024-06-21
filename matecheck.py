@@ -2,6 +2,7 @@ import argparse, random, re, concurrent.futures, chess, chess.engine, chess.syzy
 from time import time
 from multiprocessing import freeze_support, cpu_count
 from tqdm import tqdm
+from threading import Lock
 
 TBPIECES = 7
 
@@ -29,6 +30,7 @@ class Analyser:
         self.tb = self.syzygyPath = args.syzygyPath
         if self.syzygyPath is not None:
             self.tb = chess.syzygy.open_tablebase(self.syzygyPath)
+        self.tb_lock = Lock()
         self.minTBscore = args.minTBscore
 
     def tb_probe(self, board):
@@ -38,12 +40,13 @@ class Analyser:
             or chess.popcount(board.occupied) > TBPIECES
         ):
             return None
-        return self.tb.get_wdl(board)
+        with self.tb_lock:
+            return self.tb.get_wdl(board)
 
     def pv_status(self, fen, mate, score, pv):
         # check if the given pv (list of uci moves) leads to checkmate #mate
         # if mate is None, check if pv leads to claimed TB win/loss
-        losing_side = 1 if (mate and mate > 0) or score > 0 else 0
+        losing_side = 1 if (mate and mate > 0) or (score and score > 0) else 0
         try:
             board = chess.Board(fen)
             for ply, move in enumerate(pv):
@@ -117,7 +120,9 @@ class Analyser:
                         m = score.mate()
                         score = score.score()
                         if m is None and (
-                            self.syzygyPath is None or abs(score) < self.minTBscore
+                            self.syzygyPath is None
+                            or score is None
+                            or abs(score) < self.minTBscore
                         ):
                             continue
                         pv = [m.uci() for m in info["pv"]] if "pv" in info else []
@@ -346,7 +351,7 @@ if __name__ == "__main__":
                             issue["Bad PVs"][1] += int(not found_badpv)
                             found_badpv = True
                             print(
-                                f'Found TB score #{score} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.'
+                                f'Found TB score {score} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.'
                             )
                             print("PV:", pv)
                 else:
@@ -355,7 +360,7 @@ if __name__ == "__main__":
                         issue["Wrong TB score"][1] += int(not found_wrong_tb)
                         found_wrong_tb = True
                         print(
-                            f'Found TB score #{score} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
+                            f'Found TB score {score} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
                         )
                         print("PV:", pv)
 
