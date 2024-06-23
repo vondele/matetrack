@@ -127,10 +127,8 @@ class Analyser:
                         pvstr = " ".join(pv)
                         if (m, score, pvstr) not in pvstatus:
                             pvstatus[m, score, pvstr] = (
-                                (pv_status(fen, m, score, pv), False)
-                                if m
-                                else ("None", False)
-                            )
+                                pv_status(fen, m, score, pv) if m else "None"
+                            ), False
                         nodes = info.get("nodes", 0)
                         depth = info.get("depth", 0)
             if (m, score, pvstr) in pvstatus:  # mark final info line
