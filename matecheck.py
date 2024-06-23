@@ -180,7 +180,7 @@ if __name__ == "__main__":
         "--minTBscore",
         type=int,
         help="lowest cp score for a TB win",
-        default=20000 - 246,
+        default=20000 - 246,  # for SF this is TB_CP - MAX_PLY
     )
     parser.add_argument(
         "--concurrency",
