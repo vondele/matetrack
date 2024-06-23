@@ -32,7 +32,7 @@ options:
   --hash HASH           hash table size in MB (default: None)
   --threads THREADS     number of threads per position (values > 1 may lead to non-deterministic results) (default: None)
   --syzygyPath SYZYGYPATH
-                        path to syzygy EGTBs (default: None)
+                        path(s) to syzygy EGTBs, with ':' as separator (default: None)
   --minTBscore MINTBSCORE
                         lowest cp score for a TB win (default: 19754)
   --concurrency CONCURRENCY

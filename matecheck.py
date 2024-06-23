@@ -6,7 +6,9 @@ from tqdm import tqdm
 
 class TB:
     def __init__(self, path):
-        self.tb = chess.syzygy.open_tablebase(path)
+        self.tb = chess.syzygy.Tablebase()
+        for d in path.split(":"):
+            self.tb.add_directory(d)
 
     def probe(self, board):
         if (
@@ -171,7 +173,9 @@ if __name__ == "__main__":
         type=int,
         help="number of threads per position (values > 1 may lead to non-deterministic results)",
     )
-    parser.add_argument("--syzygyPath", help="path to syzygy EGTBs")
+    parser.add_argument(
+        "--syzygyPath", help="path(s) to syzygy EGTBs, with ':' as separator"
+    )
     parser.add_argument(
         "--minTBscore",
         type=int,
@@ -297,6 +301,10 @@ if __name__ == "__main__":
     print("")
 
     tb = TB(args.syzygyPath) if args.syzygyPath is not None else None
+    if tb is not None:
+        c = sum(1 for (_, score, _) in pvstatus if score is not None)
+        if c:
+            print(f"\nChecking {c} TB win PVs. This may take some time...")
     mates = bestmates = tbwins = 0
     issue = {
         "Better mates": [0, 0],
