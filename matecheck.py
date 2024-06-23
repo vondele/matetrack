@@ -1,4 +1,4 @@
-import argparse, random, re, concurrent.futures, chess, chess.engine, chess.syzygy
+import argparse, random, re, sys, concurrent.futures, chess, chess.engine, chess.syzygy
 from time import time
 from multiprocessing import freeze_support, cpu_count
 from tqdm import tqdm
@@ -7,7 +7,8 @@ from tqdm import tqdm
 class TB:
     def __init__(self, path):
         self.tb = chess.syzygy.Tablebase()
-        for d in path.split(":"):
+        sep = ";" if sys.platform.startswith("win") else ":"
+        for d in path.split(sep):
             self.tb.add_directory(d)
 
     def probe(self, board):
@@ -174,7 +175,7 @@ if __name__ == "__main__":
         help="number of threads per position (values > 1 may lead to non-deterministic results)",
     )
     parser.add_argument(
-        "--syzygyPath", help="path(s) to syzygy EGTBs, with ':' as separator"
+        "--syzygyPath", help="path(s) to syzygy EGTBs, with ':'/';' as separator on Linux/Windows"
     )
     parser.add_argument(
         "--minTBscore",
