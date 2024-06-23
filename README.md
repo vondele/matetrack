@@ -18,7 +18,7 @@ and is visualized in the graphs below.
 ### Usage of `matecheck.py`
 
 ```
-usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--concurrency CONCURRENCY] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--showAllStats]
+usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--minTBscore MINTBSCORE] [--concurrency CONCURRENCY] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--showAllStats]
 
 Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".
 
@@ -33,6 +33,8 @@ options:
   --threads THREADS     number of threads per position (values > 1 may lead to non-deterministic results) (default: None)
   --syzygyPath SYZYGYPATH
                         path to syzygy EGTBs (default: None)
+  --minTBscore MINTBSCORE
+                        lowest cp score for a TB win (default: 19754)
   --concurrency CONCURRENCY
                         total number of threads script may use, default: cpu_count() (default: 8)
   --epdFile EPDFILE [EPDFILE ...]
