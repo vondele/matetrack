@@ -198,6 +198,11 @@ if __name__ == "__main__":
         help="show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue",
     )
     parser.add_argument(
+        "--shortTBPVonly",
+        action="store_true",
+        help="for TB win scores, only consider short PVs an issue",
+    )
+    parser.add_argument(
         "--showAllStats",
         action="store_true",
         help="show nodes and depth statistics for best mates found (always True if --mate is supplied)",
@@ -293,6 +298,7 @@ if __name__ == "__main__":
 
     print("")
 
+    tb = TB(args.syzygyPath) if args.syzygyPath is not None else None
     mates = bestmates = tbwins = 0
     issue = {
         "Better mates": [0, 0],
@@ -303,64 +309,49 @@ if __name__ == "__main__":
     bestnodes = [[] for _ in range(maxbm + 1)]
     bestdepth = [[] for _ in range(maxbm + 1)]
     for fen, bestmate, pvstatus, nodes, depth in res:
-        found_better = found_wrong = found_badpv = False
+        found_better = found_wrong = found_badpv = found_wrong_tb = False
         for (mate, score, pv), (status, last_line) in pvstatus.items():
-            if mate is None:
-                continue
-            if mate * bestmate > 0:
-                if last_line:  #  for mate counts use last valid UCI info output
-                    mates += 1
-                    if mate == bestmate:
-                        bestmates += 1
-                        bestnodes[abs(mate)].append(nodes)
-                        bestdepth[abs(mate)].append(depth)
-                if abs(mate) < abs(bestmate):
-                    issue["Better mates"][0] += 1
-                    if not found_better or args.showAllIssues:
-                        issue["Better mates"][1] += int(not found_better)
-                        found_better = True
+            if mate:
+                if mate * bestmate > 0:
+                    if last_line:  #  for mate counts use last valid UCI info output
+                        mates += 1
+                        if mate == bestmate:
+                            bestmates += 1
+                            bestnodes[abs(mate)].append(nodes)
+                            bestdepth[abs(mate)].append(depth)
+                    if abs(mate) < abs(bestmate):
+                        issue["Better mates"][0] += 1
+                        if not found_better or args.showAllIssues:
+                            issue["Better mates"][1] += int(not found_better)
+                            found_better = True
+                            print(
+                                f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.'
+                            )
+                            print("PV:", pv)
+                    if status != "ok":
+                        issue["Bad PVs"][0] += 1
+                        if not found_badpv or args.showAllIssues:
+                            issue["Bad PVs"][1] += int(not found_badpv)
+                            found_badpv = True
+                            print(
+                                f'Found mate #{mate} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.'
+                            )
+                            print("PV:", pv)
+                else:
+                    issue["Wrong mates"][0] += 1
+                    if not found_wrong or args.showAllIssues:
+                        issue["Wrong mates"][1] += int(not found_wrong)
+                        found_wrong = True
                         print(
-                            f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.'
+                            f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
                         )
                         print("PV:", pv)
-                if status != "ok":
-                    issue["Bad PVs"][0] += 1
-                    if not found_badpv or args.showAllIssues:
-                        issue["Bad PVs"][1] += int(not found_badpv)
-                        found_badpv = True
-                        print(
-                            f'Found mate #{mate} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.'
-                        )
-                        print("PV:", pv)
-            else:
-                issue["Wrong mates"][0] += 1
-                if not found_wrong or args.showAllIssues:
-                    issue["Wrong mates"][1] += int(not found_wrong)
-                    found_wrong = True
-                    print(
-                        f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
-                    )
-                    print("PV:", pv)
-
-    print(f"\nUsing {msg}")
-    if name:
-        print("Engine ID:    ", name)
-    print("Total FENs:   ", numfen)
-    print("Found mates:  ", mates)
-    print("Best mates:   ", bestmates)
-
-    if args.syzygyPath is not None:
-        tb = TB(args.syzygyPath)
-        for fen, bestmate, pvstatus, nodes, depth in res:
-            found_badpv = found_wrong_tb = False
-            for (mate, score, pv), (status, last_line) in pvstatus.items():
-                if mate:
-                    continue
+            elif tb is not None:
                 if score * bestmate > 0:
                     if last_line:
                         tbwins += 1
                     status = pv_status(fen, mate, score, pv.split(), tb)
-                    if status != "ok":
+                    if status != "ok" and not args.shortTBPVonly or status == "short":
                         issue["Bad PVs"][0] += 1
                         if not found_badpv or args.showAllIssues:
                             issue["Bad PVs"][1] += int(not found_badpv)
@@ -378,6 +369,13 @@ if __name__ == "__main__":
                             f'Found TB score {score} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
                         )
                         print("PV:", pv)
+
+    print(f"\nUsing {msg}")
+    if name:
+        print("Engine ID:    ", name)
+    print("Total FENs:   ", numfen)
+    print("Found mates:  ", mates)
+    print("Best mates:   ", bestmates)
     if tbwins:
         print("Found TB wins:", tbwins)
 
