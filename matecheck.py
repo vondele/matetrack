@@ -302,9 +302,12 @@ if __name__ == "__main__":
 
     tb = TB(args.syzygyPath) if args.syzygyPath is not None else None
     if tb is not None:
-        c = sum(1 for (_, score, _) in pvstatus if score is not None)
+        c = 0
+        for _, _, pvstatus, _, _ in res:
+            c += sum(1 for (_, score, _) in pvstatus if score is not None)
         if c:
             print(f"\nChecking {c} TB win PVs. This may take some time...")
+
     mates = bestmates = tbwins = 0
     issue = {
         "Better mates": [0, 0],
