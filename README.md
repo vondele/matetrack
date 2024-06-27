@@ -18,7 +18,7 @@ and is visualized in the graphs below.
 ### Usage of `matecheck.py`
 
 ```
-usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--concurrency CONCURRENCY] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--showAllStats]
+usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--minTBscore MINTBSCORE] [--concurrency CONCURRENCY] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--shortTBPVonly] [--showAllStats]
 
 Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".
 
@@ -32,12 +32,15 @@ options:
   --hash HASH           hash table size in MB (default: None)
   --threads THREADS     number of threads per position (values > 1 may lead to non-deterministic results) (default: None)
   --syzygyPath SYZYGYPATH
-                        path to syzygy EGTBs (default: None)
+                        path(s) to syzygy EGTBs, with ':'/';' as separator on Linux/Windows (default: None)
+  --minTBscore MINTBSCORE
+                        lowest cp score for a TB win (default: 19754)
   --concurrency CONCURRENCY
                         total number of threads script may use, default: cpu_count() (default: 8)
   --epdFile EPDFILE [EPDFILE ...]
                         file(s) containing the positions and their mate scores (default: ['matetrack.epd'])
   --showAllIssues       show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue (default: False)
+  --shortTBPVonly       for TB win scores, only consider short PVs an issue (default: False)
   --showAllStats        show nodes and depth statistics for best mates found (always True if --mate is supplied) (default: False)
 ```
 
