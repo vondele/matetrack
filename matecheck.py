@@ -105,7 +105,7 @@ class Analyser:
             board = chess.Board(fen)
             pvstatus = {}  #  stores (status, final_line)
             m, score, pvstr = None, None, ""
-            nodes = depth = 0
+            nodes = depth = time = 0
             if self.mate is not None and self.mate == 0:
                 limit = chess.engine.Limit(
                     nodes=self.nodes, depth=self.depth, time=self.time, mate=abs(bm)
@@ -134,9 +134,10 @@ class Analyser:
                             ), False
                         nodes = info.get("nodes", 0)
                         depth = info.get("depth", 0)
+                        time = info.get("time", 0)
             if (m, score, pvstr) in pvstatus:  # mark final info line
                 pvstatus[m, score, pvstr] = pvstatus[m, score, pvstr][0], True
-            result_fens.append((fen, bm, pvstatus, nodes, depth))
+            result_fens.append((fen, bm, pvstatus, nodes, depth, time))
 
         engine.quit()
 
@@ -175,7 +176,8 @@ if __name__ == "__main__":
         help="number of threads per position (values > 1 may lead to non-deterministic results)",
     )
     parser.add_argument(
-        "--syzygyPath", help="path(s) to syzygy EGTBs, with ':'/';' as separator on Linux/Windows"
+        "--syzygyPath",
+        help="path(s) to syzygy EGTBs, with ':'/';' as separator on Linux/Windows",
     )
     parser.add_argument(
         "--minTBscore",
@@ -209,6 +211,11 @@ if __name__ == "__main__":
         "--showAllStats",
         action="store_true",
         help="show nodes and depth statistics for best mates found (always True if --mate is supplied)",
+    )
+    parser.add_argument(
+        "--bench",
+        action="store_true",
+        help="provide cumulative statistics for nodes searched and time used (ignoring upper/lower bound UCI info lines)",
     )
     args = parser.parse_args()
     if (
@@ -318,7 +325,7 @@ if __name__ == "__main__":
     }
     bestnodes = [[] for _ in range(maxbm + 1)]
     bestdepth = [[] for _ in range(maxbm + 1)]
-    for fen, bestmate, pvstatus, nodes, depth in res:
+    for fen, bestmate, pvstatus, nodes, depth, time in res:
         found_better = found_wrong = found_badpv = found_wrong_tb = False
         for (mate, score, pv), (status, last_line) in pvstatus.items():
             if mate:
@@ -389,7 +396,7 @@ if __name__ == "__main__":
     if tbwins:
         print("Found TB wins:", tbwins)
 
-    if args.showAllStats or args.mate is not None:
+    if (args.showAllStats or args.mate is not None) and bestmates:
         print("\nBest mate statistics:")
         for bm in range(maxbm + 1):
             if bestnodes[bm]:
@@ -397,6 +404,11 @@ if __name__ == "__main__":
                 print(
                     f"abs(bm) = {bm} - mates: {len(nl)}, nodes (min avg max): {min(nl)} {round(sum(nl)/len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl)/len(dl))} {max(dl)}"
                 )
+        nl = [n for l in bestnodes for n in l]
+        dl = [d for l in bestdepth for d in l]
+        print(
+            f"All best mates: {len(nl)}, nodes (min avg max): {min(nl)} {round(sum(nl)/len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl)/len(dl))} {max(dl)}"
+        )
 
     if sum([v[0] for v in issue.values()]):
         print(
@@ -407,3 +419,16 @@ if __name__ == "__main__":
                 print(
                     f"{key}:{' ' * (14 - len(key))}{value[0]}   (from {value[1]} FENs)"
                 )
+
+    if args.bench:
+        totalnodes = totaltime = 0
+        for _, _, pvstatus, nodes, _, time in res:
+            for _, (_, last_line) in pvstatus.items():
+                if last_line:
+                    totalnodes += nodes
+                    totaltime += time
+        print("\n===========================")
+        print("Total time (ms) :", round(totaltime * 1000))
+        print("Nodes searched  :", totalnodes)
+        if totaltime > 0:
+            print("Nodes/second    :", round(totalnodes / totaltime))
