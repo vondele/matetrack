@@ -105,7 +105,7 @@ class Analyser:
             board = chess.Board(fen)
             pvstatus = {}  #  stores (status, final_line)
             m, score, pvstr = None, None, ""
-            nodes = depth = time = 0
+            nodes = depth = lastnodes = lasttime = 0
             if self.mate is not None and self.mate == 0:
                 limit = chess.engine.Limit(
                     nodes=self.nodes, depth=self.depth, time=self.time, mate=abs(bm)
@@ -114,6 +114,8 @@ class Analyser:
                 limit = self.limit
             with engine.analysis(board, limit, game=board) as analysis:
                 for info in analysis:
+                    lastnodes = info.get("nodes", 0)
+                    lasttime = info.get("time", 0)
                     if "score" in info and not (
                         "upperbound" in info or "lowerbound" in info
                     ):
@@ -132,12 +134,11 @@ class Analyser:
                             pvstatus[m, score, pvstr] = (
                                 pv_status(fen, m, score, pv) if m else "None"
                             ), False
-                        nodes = info.get("nodes", 0)
+                        nodes = lastnodes
                         depth = info.get("depth", 0)
-                        time = info.get("time", 0)
             if (m, score, pvstr) in pvstatus:  # mark final info line
                 pvstatus[m, score, pvstr] = pvstatus[m, score, pvstr][0], True
-            result_fens.append((fen, bm, pvstatus, nodes, depth, time))
+            result_fens.append((fen, bm, pvstatus, nodes, depth, lastnodes, lasttime))
 
         engine.quit()
 
@@ -215,7 +216,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--bench",
         action="store_true",
-        help="provide cumulative statistics for nodes searched and time used (ignoring upper/lower bound UCI info lines)",
+        help="provide cumulative statistics for nodes searched and time used",
     )
     args = parser.parse_args()
     if (
@@ -325,7 +326,7 @@ if __name__ == "__main__":
     }
     bestnodes = [[] for _ in range(maxbm + 1)]
     bestdepth = [[] for _ in range(maxbm + 1)]
-    for fen, bestmate, pvstatus, nodes, depth, time in res:
+    for fen, bestmate, pvstatus, nodes, depth, _, _ in res:
         found_better = found_wrong = found_badpv = found_wrong_tb = False
         for (mate, score, pv), (status, last_line) in pvstatus.items():
             if mate:
@@ -422,11 +423,9 @@ if __name__ == "__main__":
 
     if args.bench:
         totalnodes = totaltime = 0
-        for _, _, pvstatus, nodes, _, time in res:
-            for _, (_, last_line) in pvstatus.items():
-                if last_line:
-                    totalnodes += nodes
-                    totaltime += time
+        for _, _, _, _, _, lastnodes, lasttime in res:
+            totalnodes += lastnodes
+            totaltime += lasttime
         print("\n===========================")
         print("Total time (ms) :", round(totaltime * 1000))
         print("Nodes searched  :", totalnodes)
