@@ -112,10 +112,12 @@ class Analyser:
                 )
             else:
                 limit = self.limit
+            lastnodes = 0
+            lasttime = 0
             with engine.analysis(board, limit, game=board) as analysis:
                 for info in analysis:
-                    lastnodes = info.get("nodes", 0)
-                    lasttime = info.get("time", 0)
+                    lastnodes = info.get("nodes", lastnodes)
+                    lasttime = info.get("time", lasttime)
                     if "score" in info and not (
                         "upperbound" in info or "lowerbound" in info
                     ):
