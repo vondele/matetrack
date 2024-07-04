@@ -18,7 +18,7 @@ class TB:
             cum += c
             if cum == count + 1:  # KvK is not part of count
                 self.cardinality = idx + 2
-        assert self.cardinality > 2, "Only incommplete EGTBs found."
+        assert self.cardinality > 2, "Only incomplete EGTBs found."
 
     def probe(self, board):
         if board.castling_rights or chess.popcount(board.occupied) > self.cardinality:
