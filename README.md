@@ -18,7 +18,7 @@ and is visualized in the graphs below.
 ### Usage of `matecheck.py`
 
 ```
-usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--minTBscore MINTBSCORE] [--concurrency CONCURRENCY] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench]
+usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--minTBscore MINTBSCORE] [--maxTBscore MAXTBSCORE] [--concurrency CONCURRENCY] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench]
 
 Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".
 
@@ -35,6 +35,8 @@ options:
                         path(s) to syzygy EGTBs, with ':'/';' as separator on Linux/Windows (default: None)
   --minTBscore MINTBSCORE
                         lowest cp score for a TB win (default: 19754)
+  --maxTBscore MAXTBSCORE
+                        highest cp score for a TB win: if nonzero, it is assumed that (MAXTBSCORE - |score|) is distance to TB in plies (default: 20000)
   --concurrency CONCURRENCY
                         total number of threads script may use, default: cpu_count() (default: 8)
   --epdFile EPDFILE [EPDFILE ...]
