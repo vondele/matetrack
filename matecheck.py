@@ -8,14 +8,20 @@ class TB:
     def __init__(self, path):
         self.tb = chess.syzygy.Tablebase()
         sep = ";" if sys.platform.startswith("win") else ":"
+        count = 0
         for d in path.split(sep):
-            self.tb.add_directory(d)
+            count += self.tb.add_directory(d, load_dtz=False)
+        print(f"Found {count} tablebases. ", end="")
+        file_counts = [1, 5, 30, 110, 365, 1001]  # https://oeis.org/A018213
+        self.cardinality = cum = 0
+        for idx, c in enumerate(file_counts):
+            cum += c
+            if cum == count + 1:  # KvK is not part of count
+                self.cardinality = idx + 2
+        assert self.cardinality > 2, "Only incomplete EGTBs found."
 
     def probe(self, board):
-        if (
-            board.castling_rights
-            or chess.popcount(board.occupied) > chess.syzygy.TBPIECES
-        ):
+        if board.castling_rights or chess.popcount(board.occupied) > self.cardinality:
             return None
         return self.tb.get_wdl(board)
 
@@ -26,10 +32,11 @@ def chunks(lst, n):
         yield lst[i : i + n]
 
 
-def pv_status(fen, mate, score, pv, tb=None):
+def pv_status(fen, mate, score, pv, tb=None, maxTBscore=0):
     # check if the given pv (list of uci moves) leads to checkmate #mate
     # if mate is None, check if pv leads to claimed TB win/loss
     losing_side = 1 if (mate and mate > 0) or (score and score > 0) else 0
+    plies_to_tb = 0
     try:
         board = chess.Board(fen)
         for ply, move in enumerate(pv):
@@ -38,7 +45,9 @@ def pv_status(fen, mate, score, pv, tb=None):
             # if EGTB is available, probe it to check PV correctness
             if tb is not None:
                 wdl = tb.probe(board)
-                if wdl is not None:
+                if wdl is None:
+                    plies_to_tb += 1
+                else:
                     if abs(wdl) != 2:
                         return "draw"
                     if ply % 2 == losing_side and wdl != -2:
@@ -66,6 +75,8 @@ def pv_status(fen, mate, score, pv, tb=None):
     wdl = tb.probe(board)
     if wdl is None:
         return "short"
+    if maxTBscore and plies_to_tb != maxTBscore - abs(score):
+        return "wrong"
     if abs(wdl) != 2:
         return "draw"
     if (ply + 1) % 2 == losing_side and wdl != -2:
@@ -187,6 +198,12 @@ if __name__ == "__main__":
         type=int,
         help="lowest cp score for a TB win",
         default=20000 - 246,  # for SF this is TB_CP - MAX_PLY
+    )
+    parser.add_argument(
+        "--maxTBscore",
+        type=int,
+        help="highest cp score for a TB win: if nonzero, it is assumed that (MAXTBSCORE - |score|) is distance to TB in plies",
+        default=20000,  # for SF this is TB_CP
     )
     parser.add_argument(
         "--concurrency",
@@ -317,7 +334,7 @@ if __name__ == "__main__":
         for _, _, pvstatus, _, _, _, _ in res:
             c += sum(1 for (_, score, _) in pvstatus if score is not None)
         if c:
-            print(f"\nChecking {c} TB win PVs. This may take some time...")
+            print(f"Checking {c} TB win PVs. This may take some time...\n")
 
     mates = bestmates = tbwins = 0
     issue = {
@@ -370,7 +387,9 @@ if __name__ == "__main__":
                 if score * bestmate > 0:
                     if last_line:
                         tbwins += 1
-                    status = pv_status(fen, mate, score, pv.split(), tb)
+                    status = pv_status(
+                        fen, mate, score, pv.split(), tb, args.maxTBscore
+                    )
                     if status != "ok" and not args.shortTBPVonly or status == "short":
                         issue["Bad PVs"][0] += 1
                         if not found_badpv or args.showAllIssues:
