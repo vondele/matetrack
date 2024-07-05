@@ -20,8 +20,12 @@ class TB:
                 self.cardinality = idx + 2
         assert self.cardinality > 2, "Only incomplete EGTBs found."
 
-    def probe(self, board):
-        if board.castling_rights or chess.popcount(board.occupied) > self.cardinality:
+    def probe(self, board, entered_tb):
+        if (
+            board.castling_rights
+            or chess.popcount(board.occupied) > self.cardinality
+            or (not entered_tb and board.halfmove_clock)
+        ):
             return None
         return self.tb.get_wdl(board)
 
@@ -36,7 +40,7 @@ def pv_status(fen, mate, score, pv, tb=None, maxTBscore=0):
     # check if the given pv (list of uci moves) leads to checkmate #mate
     # if mate is None, check if pv leads to claimed TB win/loss
     losing_side = 1 if (mate and mate > 0) or (score and score > 0) else 0
-    plies_to_tb = 0
+    plies_to_tb, entered_tb = 0, False
     try:
         board = chess.Board(fen)
         for ply, move in enumerate(pv):
@@ -44,10 +48,11 @@ def pv_status(fen, mate, score, pv, tb=None, maxTBscore=0):
                 return "draw"
             # if EGTB is available, probe it to check PV correctness
             if tb is not None:
-                wdl = tb.probe(board)
+                wdl = tb.probe(board, entered_tb)
                 if wdl is None:
                     plies_to_tb += 1
                 else:
+                    entered_tb = True
                     if abs(wdl) != 2:
                         return "draw"
                     if ply % 2 == losing_side and wdl != -2:
@@ -72,11 +77,11 @@ def pv_status(fen, mate, score, pv, tb=None, maxTBscore=0):
         return "wrong"
 
     # now check if the leaf node is in EGTB, with the correct result
-    wdl = tb.probe(board)
+    wdl = tb.probe(board, entered_tb)
     if wdl is None:
         return "short"
     if maxTBscore and plies_to_tb != maxTBscore - abs(score):
-        return "wrong"
+        return "wrong TB entry"
     if abs(wdl) != 2:
         return "draw"
     if (ply + 1) % 2 == losing_side and wdl != -2:
@@ -202,7 +207,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--maxTBscore",
         type=int,
-        help="highest cp score for a TB win: if nonzero, it is assumed that (MAXTBSCORE - |score|) is distance to TB in plies",
+        help="highest cp score for a TB win: if nonzero, it is assumed that (MAXTBSCORE - |score|) is distance in plies to first zeroing move in(to) TB",
         default=20000,  # for SF this is TB_CP
     )
     parser.add_argument(
@@ -334,7 +339,7 @@ if __name__ == "__main__":
         for _, _, pvstatus, _, _, _, _ in res:
             c += sum(1 for (_, score, _) in pvstatus if score is not None)
         if c:
-            print(f"Checking {c} TB win PVs. This may take some time...\n")
+            print(f"Checking {c} TB win PVs. This may take some time...")
 
     mates = bestmates = tbwins = 0
     issue = {
