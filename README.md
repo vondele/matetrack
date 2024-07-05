@@ -36,7 +36,7 @@ options:
   --minTBscore MINTBSCORE
                         lowest cp score for a TB win (default: 19754)
   --maxTBscore MAXTBSCORE
-                        highest cp score for a TB win: if nonzero, it is assumed that (MAXTBSCORE - |score|) is distance to TB in plies (default: 20000)
+                        highest cp score for a TB win: if nonzero, it is assumed that (MAXTBSCORE - |score|) is distance in plies to first zeroing move in(to) TB (default: 20000)
   --concurrency CONCURRENCY
                         total number of threads script may use, default: cpu_count() (default: 8)
   --epdFile EPDFILE [EPDFILE ...]
