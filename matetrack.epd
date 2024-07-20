@@ -6295,7 +6295,6 @@ R2n3R/1pn2kBp/4p3/P2pKNr1/4N3/1pP5/6p1/3br3 w - - bm #23; 00:00 @ C3/R0/K2/P1/X1
 8/5p1B/2b1pP2/3pP3/2pP4/KpB5/pP6/k7 w - - bm #23; --:-- @ C16/R0/K1/P3/X11; 00'24" (Gustav);
 q1n3r1/8/rbn4p/8/1P6/PQ3P2/1p1Np3/k3K2R w - - bm #23; --:-- @ C0/R4/K4/P8/X44;
 2k5/8/1P1P4/8/7p/p1p1p2P/P1P1P2P/b1K5 w - - bm #23;
-2r1b1Q1/6p1/2P5/5P2/1p2K3/pPp5/n2P4/1B2k3 w - - bm #23;
 8/p1p5/3p4/p3p3/3k1p2/1K2b1p1/1NP4p/7B w - - bm #23;
 R1n4k/n1p5/pb1p1N1P/3P3p/7p/p1p1P3/P1P1PP1P/7K w - - bm #23;
 7Q/6p1/8/8/1p6/3P3P/2P3pp/4K2k w - - bm #24; c0 "was bm #23";
@@ -6403,6 +6402,7 @@ rb2b2R/2npk3/p1p3PP/1n2K1N1/6PN/P1p3p1/3p3p/3B2rq w - - bm #31; 00:00 @ C3/R0/K3
 8/6B1/4B3/8/1B2p3/4p3/4p1pp/2k1Kbrr w - - bm #31; --:-- @ C2/R0/K7/P1/X6;
 1K4kB/6P1/6P1/3r4/8/1R6/B1PPPP2/7R w - - bm #31;
 N3k1nR/p1p1Pp2/2P1pPr1/b2pP3/P1pP1K2/2P3p1/6P1/8 w - - bm #31;
+2r1b1Q1/6p1/2P5/5P2/1p2K3/pPp5/n2P4/1B2k3 w - - bm #32; c0 "was bm #23";
 5n2/B3K3/2p3p1/4k3/7P/3bN1P1/2PrnNP1/1q6 w - - bm #32; 00:00 @ C3/R0/K2/P1/X1;
 8/3N4/3K4/1p3p2/bp2kp1p/5rbr/1p1PBp1p/N3R2n w - - bm #32; 00:00 @ C2/R0/K2/P2/X5;
 3Q4/8/8/8/k7/8/3p1pp1/3Kbrrb w - - bm #32; 00:00+ @ C2/R0/K4/P1/X3;
