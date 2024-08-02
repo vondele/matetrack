@@ -18,9 +18,7 @@ and is visualized in the graphs below.
 ### Usage of `matecheck.py`
 
 ```
-usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH]
-                    [--minTBscore MINTBSCORE] [--maxTBscore MAXTBSCORE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues]
-                    [--shortTBPVonly] [--showAllStats] [--bench]
+usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--minTBscore MINTBSCORE] [--maxTBscore MAXTBSCORE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench]
 
 Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".
 
@@ -30,8 +28,7 @@ options:
   --nodes NODES         nodes limit per position, default: 10**6 without other limits, otherwise None (default: None)
   --depth DEPTH         depth limit per position (default: None)
   --time TIME           time limit (in seconds) per position (default: None)
-  --mate MATE           mate limit per position: a value of 0 will use bm #X as the limit, a positive value (in the absence of other limits) means only elegible positions will be
-                        analysed (default: None)
+  --mate MATE           mate limit per position: a value of 0 will use bm #X as the limit, a positive value (in the absence of other limits) means only elegible positions will be analysed (default: None)
   --hash HASH           hash table size in MB (default: None)
   --threads THREADS     number of threads per position (values > 1 may lead to non-deterministic results) (default: None)
   --syzygyPath SYZYGYPATH
@@ -43,7 +40,7 @@ options:
   --concurrency CONCURRENCY
                         total number of threads script may use, default: cpu_count() (default: 32)
   --engineOpts ENGINEOPTS
-                        A json encoded dictionary of generic options, e.g. tuning parameters, to be used to initialize the engine (default: None)
+                        json encoded dictionary of generic options, e.g. tuning parameters, to be used to initialize the engine (default: None)
   --epdFile EPDFILE [EPDFILE ...]
                         file(s) containing the positions and their mate scores (default: ['matetrack.epd'])
   --showAllIssues       show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue (default: False)

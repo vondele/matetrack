@@ -223,7 +223,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--engineOpts",
         type=json.loads,
-        help="A json encoded dictionary of generic options, e.g. tuning parameters, to be used to initialize the engine",
+        help="json encoded dictionary of generic options, e.g. tuning parameters, to be used to initialize the engine",
     )
     parser.add_argument(
         "--epdFile",
