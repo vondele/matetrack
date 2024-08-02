@@ -18,7 +18,7 @@ and is visualized in the graphs below.
 ### Usage of `matecheck.py`
 
 ```
-usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--minTBscore MINTBSCORE] [--maxTBscore MAXTBSCORE] [--concurrency CONCURRENCY] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench]
+usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--minTBscore MINTBSCORE] [--maxTBscore MAXTBSCORE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench]
 
 Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".
 
@@ -38,13 +38,16 @@ options:
   --maxTBscore MAXTBSCORE
                         highest cp score for a TB win: if nonzero, it is assumed that (MAXTBSCORE - |score|) is distance in plies to first zeroing move in(to) TB (default: 20000)
   --concurrency CONCURRENCY
-                        total number of threads script may use, default: cpu_count() (default: 8)
+                        total number of threads script may use, default: cpu_count() (default: 32)
+  --engineOpts ENGINEOPTS
+                        json encoded dictionary of generic options, e.g. tuning parameters, to be used to initialize the engine (default: None)
   --epdFile EPDFILE [EPDFILE ...]
                         file(s) containing the positions and their mate scores (default: ['matetrack.epd'])
   --showAllIssues       show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue (default: False)
   --shortTBPVonly       for TB win scores, only consider short PVs an issue (default: False)
   --showAllStats        show nodes and depth statistics for best mates found (always True if --mate is supplied) (default: False)
   --bench               provide cumulative statistics for nodes searched and time used (default: False)
+
 ```
 
 Sample output:

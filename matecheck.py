@@ -2,6 +2,7 @@ import argparse, random, re, sys, concurrent.futures, chess, chess.engine, chess
 from time import time
 from multiprocessing import freeze_support, cpu_count
 from tqdm import tqdm
+import json
 
 
 class TB:
@@ -107,6 +108,7 @@ class Analyser:
         self.threads = args.threads
         self.syzygyPath = args.syzygyPath
         self.minTBscore = args.minTBscore
+        self.engineOpts = args.engineOpts
 
     def analyze_fens(self, fens):
         result_fens = []
@@ -117,6 +119,8 @@ class Analyser:
             engine.configure({"Threads": self.threads})
         if self.syzygyPath is not None:
             engine.configure({"SyzygyPath": self.syzygyPath})
+        if self.engineOpts is not None:
+            engine.configure(self.engineOpts)
         for fen, bm in fens:
             board = chess.Board(fen)
             pvstatus = {}  #  stores (status, final_line)
@@ -217,6 +221,11 @@ if __name__ == "__main__":
         help="total number of threads script may use, default: cpu_count()",
     )
     parser.add_argument(
+        "--engineOpts",
+        type=json.loads,
+        help="json encoded dictionary of generic options, e.g. tuning parameters, to be used to initialize the engine",
+    )
+    parser.add_argument(
         "--epdFile",
         nargs="+",
         default=["matetrack.epd"],
@@ -296,6 +305,9 @@ if __name__ == "__main__":
     ), f"Need concurrency >= threads, but concurrency = {args.concurrency} and threads = {args.threads}."
     fw_ratio = numfen // (4 * workers)
     fenschunked = list(chunks(fens, max(1, fw_ratio)))
+
+    if args.engineOpts is not None:
+        print("Additional generic engine options: ", args.engineOpts)
 
     limits = [
         ("nodes", args.nodes),
