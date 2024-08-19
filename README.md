@@ -47,7 +47,6 @@ options:
   --shortTBPVonly       for TB win scores, only consider short PVs an issue (default: False)
   --showAllStats        show nodes and depth statistics for best mates found (always True if --mate is supplied) (default: False)
   --bench               provide cumulative statistics for nodes searched and time used (default: False)
-
 ```
 
 Sample output:
