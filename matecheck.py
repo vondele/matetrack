@@ -351,7 +351,7 @@ if __name__ == "__main__":
         for _, _, pvstatus, _, _, _, _ in res:
             c += sum(1 for (_, score, _) in pvstatus if score is not None)
         if c:
-            print(f"Checking {c} TB win PVs. This may take some time...")
+            print(f"Checking {c} TB win PVs. This may take some time ...")
 
     mates = bestmates = tbwins = 0
     issue = {
