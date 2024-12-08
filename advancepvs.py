@@ -48,7 +48,7 @@ if __name__ == "__main__":
             pv = pv.split()
             fens.append((fen, bm, pv, line))
 
-    print(f"{len(fens)} FENs loaded...")
+    print(f"{len(fens)} FENs loaded ...")
 
     count, plies = 0, args.plies
     with open(args.outFile, "w") as f:

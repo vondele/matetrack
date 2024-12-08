@@ -296,7 +296,7 @@ if __name__ == "__main__":
     random.seed(42)
     random.shuffle(fens)  # try to balance the analysis time across chunks
 
-    print(f"Loaded {len(fens)} FENs, with max(abs(bm)) = {maxbm}.")
+    print(f"Loaded {len(fens)} FENs, with max(|bm|) = {maxbm}.")
 
     numfen = len(fens)
     workers = args.concurrency // (args.threads if args.threads else 1)
@@ -351,7 +351,7 @@ if __name__ == "__main__":
         for _, _, pvstatus, _, _, _, _ in res:
             c += sum(1 for (_, score, _) in pvstatus if score is not None)
         if c:
-            print(f"Checking {c} TB win PVs. This may take some time...")
+            print(f"Checking {c} TB win PVs. This may take some time ...")
 
     mates = bestmates = tbwins = 0
     issue = {
@@ -441,7 +441,7 @@ if __name__ == "__main__":
             if bestnodes[bm]:
                 nl, dl = bestnodes[bm], bestdepth[bm]
                 print(
-                    f"abs(bm) = {bm} - mates: {len(nl)}, nodes (min avg max): {min(nl)} {round(sum(nl)/len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl)/len(dl))} {max(dl)}"
+                    f"|bm| = {bm} - mates: {len(nl)}, nodes (min avg max): {min(nl)} {round(sum(nl)/len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl)/len(dl))} {max(dl)}"
                 )
         nl = [n for l in bestnodes for n in l]
         dl = [d for l in bestdepth for d in l]
