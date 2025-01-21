@@ -6,7 +6,7 @@ import json
 
 
 class TB:
-    def __init__(self, path):
+    def __init__(self, path, syzygy50MoveRule):
         self.tb = chess.syzygy.Tablebase()
         sep = ";" if sys.platform.startswith("win") else ":"
         count = 0
@@ -20,6 +20,7 @@ class TB:
             if cum == count + 1:  # KvK is not part of count
                 self.cardinality = idx + 2
         assert self.cardinality > 2, "Only incomplete EGTBs found."
+        self.rule50 = syzygy50MoveRule is None or syzygy50MoveRule.lower() == "true"
 
     def probe(self, board, entered_tb):
         if (
@@ -28,7 +29,10 @@ class TB:
             or (not entered_tb and board.halfmove_clock)
         ):
             return None
-        return self.tb.get_wdl(board)
+        wdl = self.tb.get_wdl(board)
+        if wdl and not self.rule50 and abs(wdl) == 1:
+            wdl *= 2  # turn cursed wins/losses into wins/losses
+        return wdl
 
 
 def chunks(lst, n):
@@ -45,8 +49,11 @@ def pv_status(fen, mate, score, pv, tb=None, maxTBscore=0):
     try:
         board = chess.Board(fen)
         for ply, move in enumerate(pv):
-            if ply % 2 == losing_side and board.can_claim_draw():
-                return "draw"
+            if ply % 2 == losing_side:
+                if (tb is None or tb.rule50) and board.can_claim_fifty_moves():
+                    return f"draw: 50mr at ply {ply} for {board.epd()}"
+                if board.can_claim_threefold_repetition():
+                    return f"draw: 3fold at ply {ply} for {board.epd()}"
             # if EGTB is available, probe it to check PV correctness
             if tb is not None:
                 wdl = tb.probe(board, entered_tb)
@@ -55,11 +62,13 @@ def pv_status(fen, mate, score, pv, tb=None, maxTBscore=0):
                 else:
                     entered_tb = True
                     if abs(wdl) != 2:
-                        return "draw"
+                        return f"draw: wdl = {wdl} at ply {ply} for {board.epd()}"
                     if ply % 2 == losing_side and wdl != -2:
-                        return "wrong"
+                        return (
+                            f"wrong: wdl = {wdl} != -2 at ply {ply} for {board.epd()}"
+                        )
                     if ply % 2 != losing_side and wdl != 2:
-                        return "wrong"
+                        return f"wrong: wdl = {wdl} != 2 at ply {ply} for {board.epd()}"
             uci = chess.Move.from_uci(move)
             if not uci in board.legal_moves:
                 raise Exception(f"illegal move {move} at position {board.epd()}")
@@ -84,11 +93,11 @@ def pv_status(fen, mate, score, pv, tb=None, maxTBscore=0):
     if maxTBscore and plies_to_tb != maxTBscore - abs(score):
         return "wrong TB entry"
     if abs(wdl) != 2:
-        return "draw"
+        return f"draw: wdl = {wdl} at leaf {board.epd()}"
     if (ply + 1) % 2 == losing_side and wdl != -2:
-        return "wrong"
+        return f"wrong: wdl = {wdl} != -2 at leaf {board.epd()}"
     if (ply + 1) % 2 != losing_side and wdl != 2:
-        return "wrong"
+        return f"wrong: wdl = {wdl} != 2 at leaf {board.epd()}"
     return "ok"
 
 
@@ -107,6 +116,7 @@ class Analyser:
         self.hash = args.hash
         self.threads = args.threads
         self.syzygyPath = args.syzygyPath
+        self.syzygy50MoveRule = args.syzygy50MoveRule
         self.minTBscore = args.minTBscore
         self.engineOpts = args.engineOpts
 
@@ -119,6 +129,8 @@ class Analyser:
             engine.configure({"Threads": self.threads})
         if self.syzygyPath is not None:
             engine.configure({"SyzygyPath": self.syzygyPath})
+        if self.syzygy50MoveRule is not None:
+            engine.configure({"Syzygy50MoveRule": self.syzygy50MoveRule})
         if self.engineOpts is not None:
             engine.configure(self.engineOpts)
         for fen, bm in fens:
@@ -203,6 +215,10 @@ if __name__ == "__main__":
         help="path(s) to syzygy EGTBs, with ':'/';' as separator on Linux/Windows",
     )
     parser.add_argument(
+        "--syzygy50MoveRule",
+        help='Count cursed wins as wins if set to "False".',
+    )
+    parser.add_argument(
         "--minTBscore",
         type=int,
         help="lowest cp score for a TB win",
@@ -261,6 +277,10 @@ if __name__ == "__main__":
         args.nodes = 10**6
     elif args.nodes is not None:
         args.nodes = eval(args.nodes)
+    assert args.syzygy50MoveRule is None or args.syzygy50MoveRule.lower() in [
+        "true",
+        "false",
+    ], "--syzygy50MoveRule expects True/False."
 
     ana = Analyser(args)
     p = re.compile(r"([0-9a-zA-Z/\- ]*) bm #([0-9\-]*);")
@@ -317,6 +337,7 @@ if __name__ == "__main__":
         ("hash", args.hash),
         ("threads", args.threads),
         ("syzygyPath", args.syzygyPath),
+        ("syzygy50MoveRule", args.syzygy50MoveRule),
     ]
     msg = (
         args.engine
@@ -345,8 +366,9 @@ if __name__ == "__main__":
 
     print("")
 
-    tb = TB(args.syzygyPath) if args.syzygyPath is not None else None
-    if tb is not None:
+    tb = None
+    if args.syzygyPath is not None:
+        tb = TB(args.syzygyPath, args.syzygy50MoveRule)
         c = 0
         for _, _, pvstatus, _, _, _, _ in res:
             c += sum(1 for (_, score, _) in pvstatus if score is not None)
