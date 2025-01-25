@@ -96,6 +96,24 @@ class matedata:
                     s=bmateDotSize,
                 )
                 ax2.legend()
+            for Idx, (s, dat, col) in enumerate(
+                [("best mates", b, bmateColor), ("mates", m, mateColor)]
+            ):
+                datmin, datmax = min(dat), max(dat)
+                datmean = (datmin + datmax) // 2
+                datpct = datmax * 100 / max(datmean, 1) - 100
+                datStr = f"{s}$\subset$[{datmin},{datmax}]$\\approx${datmean}$\pm${datpct:.1f}%"
+                lenStr = len(datStr) - 20  # account for LaTeX commands
+                ax.text(
+                    0.055 + Idx * (0.94 - 0.012 * lenStr),
+                    0.02,
+                    datStr,
+                    transform=fig.transFigure,
+                    color=col,
+                    fontsize=7,
+                    family="monospace",
+                    weight="bold",
+                )
 
         # add release labels
         for i, txt in enumerate(t):
