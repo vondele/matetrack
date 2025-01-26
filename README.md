@@ -73,6 +73,7 @@ contains illegal moves or does not end in checkmate.
 * `matetrackpv.epd`: The same as `matetrack.epd`, but for each position the file also includes a PV leading to the checkmate, if such a PV is known.
 * `matedtrack.epd`: Derived from `matetrackpv.epd` by applying a best move in all those positions, where the winning side is to move, and where a best move is known. The order of the positions in `matedtrack.epd` corresponds 1:1 to the order in `matetrack.epd`. So the new test suite still contains 6554 mate problems, but for 6547 of them the side to move is going to get mated. Observe that due to duplications, only 6529 of the latter positions are unique.
 * `mates2000.epd`: A smaller test suite with 2000 positions ranging from #1 to #27. It contains a random selection of positions from `matetrack.epd` and `matedtrack.epd` that Stockfish can solve with 1M nodes. In 1105 positions the side to move is going to get mated.
+* `cursed.epd`: A collection of 125 cursed wins and 189 cursed losses, where wins and losses are denoted by `bm #1` and `bm #-1', respectively.
 
 ### Automatic creation of new test positions
 
