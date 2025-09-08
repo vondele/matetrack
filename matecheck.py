@@ -150,12 +150,15 @@ class Analyser:
                 for info in analysis:
                     lastnodes = info.get("nodes", lastnodes)
                     lasttime = info.get("time", lasttime)
-                    if "score" in info and not (
-                        "upperbound" in info or "lowerbound" in info
-                    ):
-                        score = info["score"].pov(board.turn)
-                        m = score.mate()
-                        score = score.score()
+                    if "score" in info:
+                        temp_score = info["score"].pov(board.turn)
+                        temp_m = temp_score.mate()
+                        temp_score = temp_score.score()
+                        if "upperbound" in info or "lowerbound" in info:
+                            if temp_m:
+                                pvstatus[temp_m, None, "bound"] = "", False
+                            continue
+                        m, score = temp_m, temp_score
                         if m is None and (
                             self.syzygyPath is None
                             or score is None
@@ -219,16 +222,28 @@ if __name__ == "__main__":
         help='Count cursed wins as wins if set to "False".',
     )
     parser.add_argument(
+        "--maxTBscore",
+        type=int,
+        help="highest cp score for a TB win: if nonzero, it is assumed that (MAXTBSCORE - |score|) is distance in plies to first zeroing move in(to) TB",
+        default=20000,  # for SF this is TB_CP
+    )
+    parser.add_argument(
         "--minTBscore",
         type=int,
         help="lowest cp score for a TB win",
         default=20000 - 246,  # for SF this is TB_CP - MAX_PLY
     )
     parser.add_argument(
-        "--maxTBscore",
+        "--maxValidMate",
         type=int,
-        help="highest cp score for a TB win: if nonzero, it is assumed that (MAXTBSCORE - |score|) is distance in plies to first zeroing move in(to) TB",
-        default=20000,  # for SF this is TB_CP
+        help="highest possible mate score",
+        default=123,  # for SF this is MAX_PLY // 2
+    )
+    parser.add_argument(
+        "--minValidMate",
+        type=int,
+        help="lowest possible mate score",
+        default=-123,  # for SF this is - MAX_PLY // 2
     )
     parser.add_argument(
         "--concurrency",
@@ -377,6 +392,7 @@ if __name__ == "__main__":
 
     mates = bestmates = tbwins = 0
     issue = {
+        "Invalid mate scores": [0, 0],
         "Better mates": [0, 0],
         "Wrong mates": [0, 0],
         "Bad PVs": [0, 0],
@@ -385,9 +401,20 @@ if __name__ == "__main__":
     bestnodes = [[] for _ in range(maxbm + 1)]
     bestdepth = [[] for _ in range(maxbm + 1)]
     for fen, bestmate, pvstatus, nodes, depth, _, _ in res:
-        found_better = found_wrong = found_badpv = found_wrong_tb = False
+        found_invalid = found_better = found_wrong = False
+        found_badpv = found_wrong_tb = False
         for (mate, score, pv), (status, last_line) in pvstatus.items():
             if mate:
+                if mate > args.maxValidMate or mate < args.minValidMate:
+                    issue["Invalid mate scores"][0] += 1
+                    if not found_invalid or args.showAllIssues:
+                        issue["Invalid mate scores"][1] += int(not found_invalid)
+                        found_invalid = True
+                        print(
+                            f'Found invalid mate #{mate} outside of [{args.minValidMate}, {args.maxValidMate}] for FEN "{fen}" with bm #{bestmate}.'
+                        )
+                if pv == "bound":
+                    continue
                 if mate * bestmate > 0:
                     if last_line:  #  for mate counts use last valid UCI info output
                         mates += 1
@@ -478,7 +505,7 @@ if __name__ == "__main__":
         for key, value in issue.items():
             if value[0]:
                 print(
-                    f"{key}:{' ' * (14 - len(key))}{value[0]}   (from {value[1]} FENs)"
+                    f"{key}:{' ' * (20 - len(key))}{value[0]}   (from {value[1]} FENs)"
                 )
 
     if args.bench:

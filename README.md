@@ -18,7 +18,7 @@ and is visualized in the graphs below.
 ### Usage of `matecheck.py`
 
 ```
-usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--minTBscore MINTBSCORE] [--maxTBscore MAXTBSCORE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench]
+usage: matecheck.py [-h] [--engine ENGINE] [--nodes NODES] [--depth DEPTH] [--time TIME] [--mate MATE] [--hash HASH] [--threads THREADS] [--syzygyPath SYZYGYPATH] [--syzygy50MoveRule SYZYGY50MOVERULE] [--maxTBscore MAXTBSCORE] [--minTBscore MINTBSCORE] [--maxValidMate MAXVALIDMATE] [--minValidMate MINVALIDMATE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench]
 
 Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".
 
@@ -33,10 +33,16 @@ options:
   --threads THREADS     number of threads per position (values > 1 may lead to non-deterministic results) (default: None)
   --syzygyPath SYZYGYPATH
                         path(s) to syzygy EGTBs, with ':'/';' as separator on Linux/Windows (default: None)
-  --minTBscore MINTBSCORE
-                        lowest cp score for a TB win (default: 19754)
+  --syzygy50MoveRule SYZYGY50MOVERULE
+                        Count cursed wins as wins if set to "False". (default: None)
   --maxTBscore MAXTBSCORE
                         highest cp score for a TB win: if nonzero, it is assumed that (MAXTBSCORE - |score|) is distance in plies to first zeroing move in(to) TB (default: 20000)
+  --minTBscore MINTBSCORE
+                        lowest cp score for a TB win (default: 19754)
+  --maxValidMate MAXVALIDMATE
+                        highest possible mate score (default: 123)
+  --minValidMate MINVALIDMATE
+                        lowest possible mate score (default: -123)
   --concurrency CONCURRENCY
                         total number of threads script may use, default: cpu_count() (default: 32)
   --engineOpts ENGINEOPTS
