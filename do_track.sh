@@ -5,7 +5,7 @@ set -e
 
 echo "started at: " $(date)
 
-# the repo displays all the revisions from sf_4 to now, excluding some commits
+# the repo displays all the revisions from sf_3 to now, excluding some commits
 sf3=aa2368a6878a867fe63247ee2adf2fde3dfe22be
 firstrev=$sf3
 lastrev=HEAD
