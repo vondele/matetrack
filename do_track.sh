@@ -18,6 +18,33 @@ nodes=1000000
 # check if we run with the repo values
 [ "$firstrev" = "$sf3" ] && [ "$lastrev" = "HEAD" ] && [ "$nodes" = "1000000" ] && repo=yes || repo=no
 
+# use compact file names for the repo
+if [ "$repo" = "yes" ]; then
+    csv=matetrack$nodes.csv # list of previously computed results
+    new=new$nodes.csv       # temporary list of newly computed results
+else
+    csv=matetrack_"$firstrev"_"$lastrev"_"$nodes".csv
+    new=new_"$firstrev"_"$lastrev"_"$nodes".csv
+fi
+out=out.tmp # file for output from matecheck.py
+
+# if necessary, create a new csv file with the correct header
+if [[ ! -f $csv ]]; then
+    echo "Commit Date,Commit SHA,Positions,Mates,Best mates,Better mates,Wrong mates,Bad PVs,Release tag" >$csv
+fi
+
+# check if script is already running, using $new as lock file
+if [[ -f $new ]]; then
+    echo "ERROR: Found '$new', indicating the script is already running."
+    echo "HINT: Merge partial results and/or delete $new before trying again."
+    echo "      The former can be achieved with"
+    echo "      'cat $new >>$csv && rm $new'."
+    echo -e "\nABORTING"
+    exit 1
+else
+    touch $new
+fi
+
 # clone SF (and download an old, non-embedded master net) as needed
 if [[ ! -e Stockfish ]]; then
     git clone https://github.com/official-stockfish/Stockfish.git
@@ -34,27 +61,6 @@ git pull >&pull.log
 revs=$(git rev-list --reverse $firstrev^..$lastrev)
 tags=$(git ls-remote --quiet --tags | grep -E "sf_[0-9]+(\.[0-9]+)?")
 cd ../..
-
-# use compact file names for the repo
-if [ "$repo" = "yes" ]; then
-    csv=matetrack$nodes.csv # list of previously computed results
-    new=new$nodes.csv       # temporary list of newly computed results
-else
-    csv=matetrack_"$firstrev"_"$lastrev"_"$nodes".csv
-    new=new_"$firstrev"_"$lastrev"_"$nodes".csv
-fi
-out=out.tmp # file for output from matecheck.py
-
-# if necessary, create a new csv file with the correct header
-if [[ ! -f $csv ]]; then
-    echo "Commit Date,Commit SHA,Positions,Mates,Best mates,Better mates,Wrong mates,Bad PVs,Release tag" >$csv
-fi
-
-# if necessary, merge results from a previous (interrupted) run of this script
-if [[ -f $new ]]; then
-    cat $new >>$csv && rm $new
-    python3 plotdata.py $csv
-fi
 
 # go over the revision list and obtain missing results if necessary
 for rev in $revs; do
