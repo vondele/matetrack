@@ -28,7 +28,7 @@ class matedata:
                         )
                         self.tags.append(parts[-1])
 
-    def create_graph(self, plotAll=False):
+    def create_graph(self, plotAll=False, showGoatLines=False):
         # plotAll=True: full history, against date, single y-axis
         # plotAll=False: last 50 commits, against commit, two y-axes
         plotStart = 0 if plotAll else -50
@@ -148,7 +148,7 @@ class matedata:
                 fontsize=5,
                 weight="bold",
             )
-            if plotAll:
+            if plotAll or not showGoatLines:
                 continue
             usedAxis.axhline(
                 maxValue, color="silver", linestyle="dashed", linewidth=0.2
@@ -193,5 +193,5 @@ if __name__ == "__main__":
 
     prefix, _, _ = args.filename.partition(".csv")
     data = matedata(prefix)
-    data.create_graph()
+    data.create_graph(showGoatLines=False)
     data.create_graph(plotAll=True)
