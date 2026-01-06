@@ -59,9 +59,8 @@ class matedata:
             )
             ax.grid(alpha=0.4, linewidth=0.5)
             # increase the size of the two dots in the legend
-            # legendHandles will cease to work from Matplotlib v3.9.0: legend_handles may then work
             lgnd = ax.legend()
-            for handle in lgnd.legendHandles:
+            for handle in lgnd.legend_handles:
                 handle.set_sizes([8])
             # now reduce opacity for the dots in the plot itself
             bmate.set_alpha(0.25)

@@ -114,7 +114,8 @@ for rev in $revs; do
 done
 
 if [[ -f $new ]]; then
-    cat $new >>$csv && rm $new
+    cat $new >>$csv
+    rm $new
     python3 plotdata.py $csv
 fi
 
