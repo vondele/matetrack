@@ -1,4 +1,4 @@
-import argparse, random, re, sys, concurrent.futures, chess, chess.engine, chess.syzygy
+import argparse, random, re, sys, concurrent.futures, chess, chess.engine, chess.syzygy, logging
 from time import time
 from multiprocessing import freeze_support, cpu_count
 from tqdm import tqdm
@@ -282,6 +282,10 @@ if __name__ == "__main__":
         action="store_true",
         help="provide cumulative statistics for nodes searched and time used",
     )
+    parser.add_argument(
+        "--logFile",
+        help="optional file to log the engine's output while it is analysing",
+    )
     args = parser.parse_args()
     if (
         args.nodes is None
@@ -296,6 +300,10 @@ if __name__ == "__main__":
         "true",
         "false",
     ], "--syzygy50MoveRule expects True/False."
+
+    if args.logFile:
+        print(f"Logging of engine output to {args.logFile} enabled.")
+        logging.basicConfig(filename=args.logFile, level=logging.DEBUG)
 
     ana = Analyser(args)
     p = re.compile(r"([0-9a-zA-Z/\- ]*) bm #([0-9\-]*);")
