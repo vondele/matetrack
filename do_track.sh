@@ -2,6 +2,7 @@
 
 # exit on errors
 set -e
+trap 'echo "Error on line $LINENO: $BASH_COMMAND" >&2' ERR
 
 echo "started at: " $(date)
 
@@ -56,7 +57,10 @@ fi
 # update SF, get a sorted revision list and all the release tags
 cd Stockfish/src
 git checkout master >&checkout.log
-git fetch origin >&fetch.log
+if ! git fetch origin >&fetch.log; then
+   echo "Failed fetch!"
+   cat fetch.log
+fi
 git pull >&pull.log
 revs=$(git rev-list --reverse $firstrev^..$lastrev)
 tags=$(git ls-remote --quiet --tags | grep -E "sf_[0-9]+(\.[0-9]+)?")
