@@ -104,12 +104,20 @@ def pv_status(fen, mate, score, pv, tb=None, maxTBscore=0):
 class Analyser:
     def __init__(self, args):
         self.engine = args.engine
-        self.limit = chess.engine.Limit(
-            nodes=args.nodes,
-            depth=args.depth,
-            time=args.time,
-            mate=args.mate if args.mate else None,
-        )
+        if args.timeinc is None:
+            self.limit = chess.engine.Limit(
+                nodes=args.nodes,
+                depth=args.depth,
+                time=args.time,
+                mate=args.mate if args.mate else None,
+            )
+        else:
+            self.limit = chess.engine.Limit(
+                white_clock=args.time,
+                black_clock=args.time,
+                white_inc=args.timeinc,
+                black_inc=args.timeinc,
+            )
         self.mate = args.mate
         if self.mate is not None and self.mate == 0:
             self.nodes, self.depth, self.time = args.nodes, args.depth, args.time
@@ -201,6 +209,11 @@ if __name__ == "__main__":
     parser.add_argument("--depth", type=int, help="depth limit per position")
     parser.add_argument(
         "--time", type=float, help="time limit (in seconds) per position"
+    )
+    parser.add_argument(
+        "--timeinc",
+        type=float,
+        help="time increment (in seconds), with TIME passed as time remaining",
     )
     parser.add_argument(
         "--mate",
@@ -300,6 +313,12 @@ if __name__ == "__main__":
         "true",
         "false",
     ], "--syzygy50MoveRule expects True/False."
+    assert args.timeinc is None or (
+        args.time is not None
+        and args.nodes is None
+        and args.depth is None
+        and args.mate is None
+    ), "--timeinc needs (only) --time."
 
     if args.logFile:
         print(f"Logging of engine output to {args.logFile} enabled.")
@@ -356,6 +375,7 @@ if __name__ == "__main__":
         ("nodes", args.nodes),
         ("depth", args.depth),
         ("time", args.time),
+        ("timeinc", args.timeinc),
         ("mate", args.mate),
         ("hash", args.hash),
         ("threads", args.threads),
