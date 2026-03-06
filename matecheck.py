@@ -123,6 +123,7 @@ class Analyser:
             self.nodes, self.depth, self.time = args.nodes, args.depth, args.time
         self.hash = args.hash
         self.threads = args.threads
+        self.multiPV = args.multiPV
         self.syzygyPath = args.syzygyPath
         self.syzygy50MoveRule = args.syzygy50MoveRule
         self.minTBscore = args.minTBscore
@@ -154,11 +155,13 @@ class Analyser:
                 limit = self.limit
             lastnodes = 0
             lasttime = 0
-            with engine.analysis(board, limit, game=board) as analysis:
+            with engine.analysis(
+                board, limit, multipv=self.multiPV, game=board
+            ) as analysis:
                 for info in analysis:
                     lastnodes = info.get("nodes", lastnodes)
                     lasttime = info.get("time", lasttime)
-                    if "score" in info:
+                    if info.get("multipv", 1) == 1 and "score" in info:
                         temp_score = info["score"].pov(board.turn)
                         temp_m = temp_score.mate()
                         temp_score = temp_score.score()
@@ -225,6 +228,11 @@ if __name__ == "__main__":
         "--threads",
         type=int,
         help="number of threads per position (values > 1 may lead to non-deterministic results)",
+    )
+    parser.add_argument(
+        "--multiPV",
+        type=int,
+        help="maximal number of lines to search per position",
     )
     parser.add_argument(
         "--syzygyPath",
@@ -379,6 +387,7 @@ if __name__ == "__main__":
         ("mate", args.mate),
         ("hash", args.hash),
         ("threads", args.threads),
+        ("multiPV", args.multiPV),
         ("syzygyPath", args.syzygyPath),
         ("syzygy50MoveRule", args.syzygy50MoveRule),
     ]
