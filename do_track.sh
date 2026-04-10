@@ -61,7 +61,10 @@ if ! git fetch origin >&fetch.log; then
    echo "Failed fetch!"
    cat fetch.log
 fi
-git pull >&pull.log
+if ! git pull >&pull.log; then
+   echo "Failed pull"
+   cat pull.log
+fi
 revs=$(git rev-list --reverse $firstrev^..$lastrev)
 tags=$(git ls-remote --quiet --tags | grep -E "sf_[0-9]+(\.[0-9]+)?")
 cd ../..
@@ -117,16 +120,18 @@ for rev in $revs; do
     fi
 done
 
-if [[ -f $new ]]; then
+if [ -s $new ]; then
     cat $new >>$csv
     rm $new
     python3 plotdata.py $csv
-fi
 
-if [ "$repo" = "yes" ]; then
-    git add $csv matetrack$nodes.png matetrack"$nodes"all.png
-    git diff --staged --quiet || git commit -m "Update results"
-    git push origin master >&push.log
+    if [ "$repo" = "yes" ]; then
+        git add $csv matetrack$nodes.png matetrack"$nodes"all.png
+        git diff --staged --quiet || git commit -m "Update results"
+        git push origin master >&push.log
+    fi
+else
+    rm -f $new
 fi
 
 echo "ended at: " $(date)
