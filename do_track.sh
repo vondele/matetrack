@@ -66,7 +66,14 @@ if ! git pull >&pull.log; then
    cat pull.log
 fi
 revs=$(git rev-list --reverse $firstrev^..$lastrev)
-tags=$(git ls-remote --quiet --tags | grep -E "sf_[0-9]+(\.[0-9]+)?")
+
+if output=$(git ls-remote --quiet --tags 2>/dev/null); then
+  tags=$(printf "%s\n" "$output" | grep -E "sf_[0-9]+(\.[0-9]+)?")
+else
+  echo "Failed to ls-remote tags"
+  tags=""
+fi
+
 cd ../..
 
 # go over the revision list and obtain missing results if necessary
