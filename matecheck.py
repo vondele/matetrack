@@ -367,12 +367,15 @@ if __name__ == "__main__":
                     else:
                         fens[fen] = bm
 
-    maxbm = max([abs(bm) for bm in fens.values()]) if fens else 0
+    absbms = [abs(bm) for bm in fens.values()] if fens else [0]
+    maxbm = max(absbms)
     fens = list(fens.items())
     random.seed(42)
     random.shuffle(fens)  # try to balance the analysis time across chunks
 
-    print(f"Loaded {len(fens)} FENs, with max(|bm|) = {maxbm}.")
+    print(
+        f"Loaded {len(fens)} FENs, with |bm| (min avg max): {min(absbms)} {round(sum(absbms)/len(absbms))} {maxbm}."
+    )
 
     numfen = len(fens)
     workers = args.concurrency // (args.threads if args.threads else 1)
@@ -532,13 +535,14 @@ if __name__ == "__main__":
         for bm in range(maxbm + 1):
             if bestnodes[bm]:
                 nl, dl = bestnodes[bm], bestdepth[bm]
+                total = absbms.count(bm)
                 print(
-                    f"|bm| = {bm} - mates: {len(nl)}, nodes (min avg max): {min(nl)} {round(sum(nl)/len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl)/len(dl))} {max(dl)}"
+                    f"|bm| = {bm} - mates found: {len(nl)} = {(len(nl) * 1000 // total) / 10}% of {total}; nodes (min avg max): {min(nl)} {round(sum(nl)/len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl)/len(dl))} {max(dl)}"
                 )
         nl = [n for l in bestnodes for n in l]
         dl = [d for l in bestdepth for d in l]
         print(
-            f"All best mates: {len(nl)}, nodes (min avg max): {min(nl)} {round(sum(nl)/len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl)/len(dl))} {max(dl)}"
+            f"All best mates found: {len(nl)} = {(len(nl) * 1000 // numfen) / 10}% of {numfen}; nodes (min avg max): {min(nl)} {round(sum(nl)/len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl)/len(dl))} {max(dl)}"
         )
 
     if sum([v[0] for v in issue.values()]):
