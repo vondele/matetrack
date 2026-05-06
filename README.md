@@ -18,7 +18,7 @@ and is visualized in the graphs below.
 ### Usage of `matecheck.py`
 
 ```
-usage: matecheck.py [-h] [--engine ENGINE] [--timeout TIMEOUT] [--nodes NODES] [--depth DEPTH] [--time TIME] [--timeinc TIMEINC] [--mate MATE] [--hash HASH] [--threads THREADS] [--multiPV MULTIPV] [--syzygyPath SYZYGYPATH] [--syzygy50MoveRule SYZYGY50MOVERULE] [--maxTBscore MAXTBSCORE] [--minTBscore MINTBSCORE] [--maxValidMate MAXVALIDMATE] [--minValidMate MINVALIDMATE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--epdFile EPDFILE [EPDFILE ...]] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench] [--logFile LOGFILE]
+usage: matecheck.py [-h] [--engine ENGINE] [--timeout TIMEOUT] [--nodes NODES] [--depth DEPTH] [--time TIME] [--timeinc TIMEINC] [--mate MATE] [--hash HASH] [--threads THREADS] [--multiPV MULTIPV] [--syzygyPath SYZYGYPATH] [--syzygy50MoveRule SYZYGY50MOVERULE] [--maxTBscore MAXTBSCORE] [--minTBscore MINTBSCORE] [--maxValidMate MAXVALIDMATE] [--minValidMate MINVALIDMATE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--epdFile EPDFILE [EPDFILE ...]] [--bmMin BMMIN] [--bmMax BMMAX] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench] [--logFile LOGFILE]
 
 Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".
 
@@ -52,6 +52,8 @@ options:
                         json encoded dictionary of generic options, e.g. tuning parameters, to be used to initialize the engine (default: None)
   --epdFile EPDFILE [EPDFILE ...]
                         file(s) containing the positions and their mate scores (default: ['matetrack.epd'])
+  --bmMin BMMIN         lower limit for |bm| for positions to analyse (default: None)
+  --bmMax BMMAX         upper limit for |bm| for positions to analyse (default: None)
   --showAllIssues       show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue (default: False)
   --shortTBPVonly       for TB win scores, only consider short PVs an issue (default: False)
   --showAllStats        show nodes and depth statistics for best mates found (always True if --mate is supplied) (default: False)

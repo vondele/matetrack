@@ -290,6 +290,16 @@ if __name__ == "__main__":
         help="file(s) containing the positions and their mate scores",
     )
     parser.add_argument(
+        "--bmMin",
+        type=int,
+        help="lower limit for |bm| for positions to analyse",
+    )
+    parser.add_argument(
+        "--bmMax",
+        type=int,
+        help="upper limit for |bm| for positions to analyse",
+    )
+    parser.add_argument(
         "--showAllIssues",
         action="store_true",
         help="show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue",
@@ -356,6 +366,10 @@ if __name__ == "__main__":
                     fen, bm = m.group(1), int(m.group(2))
                     if unlimited and args.mate < abs(bm):
                         continue  # avoid analyses that cannot terminate
+                    if (args.bmMin is not None and abs(bm) < args.bmMin) or (
+                        args.bmMax is not None and abs(bm) > args.bmMax
+                    ):
+                        continue
                     if fen in fens:
                         bmold = fens[fen]
                         if bm != bmold:
@@ -389,6 +403,8 @@ if __name__ == "__main__":
         print("Additional generic engine options: ", args.engineOpts)
 
     limits = [
+        ("bmMin", args.bmMin),
+        ("bmMax", args.bmMax),
         ("nodes", args.nodes),
         ("depth", args.depth),
         ("time", args.time),
