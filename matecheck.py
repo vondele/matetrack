@@ -70,7 +70,7 @@ def pv_status(fen, mate, score, pv, tb=None, maxTBscore=0):
                     if ply % 2 != losing_side and wdl != 2:
                         return f"wrong: wdl = {wdl} != 2 at ply {ply} for {board.epd()}"
             uci = chess.Move.from_uci(move)
-            if not uci in board.legal_moves:
+            if uci not in board.legal_moves:
                 raise Exception(f"illegal move {move} at position {board.epd()}")
             board.push(uci)
     except Exception as ex:
@@ -323,6 +323,10 @@ if __name__ == "__main__":
         "--logFile",
         help="optional file to log the engine's output while it is analysing",
     )
+    parser.add_argument(
+        "--foundMatesFile",
+        help="optional file to save the positions the engine found a mate for",
+    )
     args = parser.parse_args()
     if (
         args.nodes is None
@@ -355,7 +359,7 @@ if __name__ == "__main__":
         args.mate and args.nodes is None and args.depth is None and args.time is None
     )
 
-    fens = {}
+    bmfens = {}
     for epd in args.epdFile:
         with open(epd) as f:
             for line in f:
@@ -370,20 +374,20 @@ if __name__ == "__main__":
                         args.bmMax is not None and abs(bm) > args.bmMax
                     ):
                         continue
-                    if fen in fens:
-                        bmold = fens[fen]
+                    if fen in bmfens:
+                        bmold = bmfens[fen]
                         if bm != bmold:
                             print(
                                 f'Warning: For duplicate FEN "{fen}" we only keep faster mate between #{bm} and #{bmold}.'
                             )
                             if abs(bm) < abs(bmold):
-                                fens[fen] = bm
+                                bmfens[fen] = bm
                     else:
-                        fens[fen] = bm
+                        bmfens[fen] = bm
 
-    absbms = [abs(bm) for bm in fens.values()] if fens else [0]
+    absbms = [abs(bm) for bm in bmfens.values()] if bmfens else [0]
     maxbm = max(absbms)
-    fens = list(fens.items())
+    fens = list(bmfens.items())
     random.seed(42)
     random.shuffle(fens)  # try to balance the analysis time across chunks
 
@@ -462,6 +466,7 @@ if __name__ == "__main__":
     }
     bestnodes = [[] for _ in range(maxbm + 1)]
     bestdepth = [[] for _ in range(maxbm + 1)]
+    foundmates = {}
     for fen, bestmate, pvstatus, nodes, depth, _, _ in res:
         found_invalid = found_better = found_wrong = False
         found_badpv = found_wrong_tb = False
@@ -480,6 +485,7 @@ if __name__ == "__main__":
                 if mate * bestmate > 0:
                     if last_line:  #  for mate counts use last valid UCI info output
                         mates += 1
+                        foundmates[fen] = mate
                         if mate == bestmate:
                             bestmates += 1
                             bestnodes[abs(mate)].append(nodes)
@@ -581,3 +587,12 @@ if __name__ == "__main__":
         print("Nodes searched  :", totalnodes)
         if totaltime > 0:
             print("Nodes/second    :", round(totalnodes / totaltime))
+
+    if args.foundMatesFile:
+        with open(args.foundMatesFile, "w") as f:
+            for fen, bm in bmfens.items():
+                if fen not in foundmates:
+                    continue
+                m = foundmates.pop(fen)  # to avoid duplicate output
+                txt = "Found best mate" if m == bm else f"Found mate #{m}"
+                f.write(f'{fen} bm #{bm}; c0 "{txt}"\n')

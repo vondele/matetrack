@@ -18,7 +18,7 @@ and is visualized in the graphs below.
 ### Usage of `matecheck.py`
 
 ```
-usage: matecheck.py [-h] [--engine ENGINE] [--timeout TIMEOUT] [--nodes NODES] [--depth DEPTH] [--time TIME] [--timeinc TIMEINC] [--mate MATE] [--hash HASH] [--threads THREADS] [--multiPV MULTIPV] [--syzygyPath SYZYGYPATH] [--syzygy50MoveRule SYZYGY50MOVERULE] [--maxTBscore MAXTBSCORE] [--minTBscore MINTBSCORE] [--maxValidMate MAXVALIDMATE] [--minValidMate MINVALIDMATE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--epdFile EPDFILE [EPDFILE ...]] [--bmMin BMMIN] [--bmMax BMMAX] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench] [--logFile LOGFILE]
+usage: matecheck.py [-h] [--engine ENGINE] [--timeout TIMEOUT] [--nodes NODES] [--depth DEPTH] [--time TIME] [--timeinc TIMEINC] [--mate MATE] [--hash HASH] [--threads THREADS] [--multiPV MULTIPV] [--syzygyPath SYZYGYPATH] [--syzygy50MoveRule SYZYGY50MOVERULE] [--maxTBscore MAXTBSCORE] [--minTBscore MINTBSCORE] [--maxValidMate MAXVALIDMATE] [--minValidMate MINVALIDMATE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--epdFile EPDFILE [EPDFILE ...]] [--bmMin BMMIN] [--bmMax BMMAX] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench] [--logFile LOGFILE] [--foundMatesFile FOUNDMATESFILE]
 
 Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".
 
@@ -59,6 +59,8 @@ options:
   --showAllStats        show nodes and depth statistics for best mates found (always True if --mate is supplied) (default: False)
   --bench               provide cumulative statistics for nodes searched and time used (default: False)
   --logFile LOGFILE     optional file to log the engine's output while it is analysing (default: None)
+  --foundMatesFile FOUNDMATESFILE
+                        optional file to save the positions the engine found a mate for (default: None)
 ```
 
 Sample output:
