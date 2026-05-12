@@ -28,7 +28,7 @@ class matedata:
                         )
                         self.tags.append(parts[-1])
 
-    def create_graph(self, plotAll=False, showGoatLines=False):
+    def create_graph(self, epdFile, plotAll=False, showGoatLines=False):
         # plotAll=True: full history, against date, single y-axis
         # plotAll=False: last 50 commits, against commit, two y-axes
         plotStart = 0 if plotAll else -50
@@ -60,7 +60,11 @@ class matedata:
             ax.grid(alpha=0.4, linewidth=0.5)
             # increase the size of the two dots in the legend
             lgnd = ax.legend()
-            for handle in lgnd.legend_handles:
+            try:
+                handles = lgnd.legend_handles
+            except AttributeError:
+                handles = lgnd.legendHandles
+            for handle in handles:
                 handle.set_sizes([8])
             # now reduce opacity for the dots in the plot itself
             bmate.set_alpha(0.25)
@@ -169,7 +173,7 @@ class matedata:
         elif nodes.endswith("0" * 3):
             nodes = nodes[:-3] + "K"
         ax.set_title(
-            f"(Mates found with {nodes} nodes per position on matetrack.epd"
+            f"(Mates found with {nodes} nodes per position on {epdFile}"
             + (f" for last {-plotStart} commits.)" if not plotAll else ".)"),
             fontsize=6,
             family="monospace",
@@ -188,9 +192,14 @@ if __name__ == "__main__":
         help="file with statistics over time",
         default="matetrack1000000.csv",
     )
+    parser.add_argument(
+        "--epdFile",
+        help="filename of the puzzle suite",
+        default="matetrack.epd",
+    )
     args = parser.parse_args()
 
     prefix, _, _ = args.filename.partition(".csv")
     data = matedata(prefix)
-    data.create_graph(showGoatLines=False)
-    data.create_graph(plotAll=True)
+    data.create_graph(args.epdFile, showGoatLines=False)
+    data.create_graph(args.epdFile, plotAll=True)
