@@ -1,5 +1,6 @@
 #  Track the evolution of Stockfish mate finding effectiveness 
 
+### `matetrack.epd`
 Track the performance of [official Stockfish](https://github.com/official-stockfish/Stockfish)
 in finding the (best) mates within the 6554 mate problems in [`matetrack.epd`](matetrack.epd).
 The raw data is available in [`matetrack1000000.csv`](matetrack1000000.csv),
@@ -12,6 +13,23 @@ and is visualized in the graphs below.
 <p align="center">
   <img src="matetrack1000000.png?raw=true">
 </p>
+
+### `classic280.epd`
+Analogously for the 280 mate problems in [`classic280.epd`](classic280.epd),
+with the raw data in [`classic1000000.csv`](classic1000000.csv).
+
+<table>
+  <tr>
+    <td align="center">
+      <div align="center"></div>
+      <img src="classic1000000all.png?raw=true" width="100%">
+    </td>
+    <td align="center">
+      <div align="center"></div>
+      <img src="classic1000000.png?raw=true" width="100%">
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -88,6 +106,8 @@ contains illegal moves or does not end in checkmate.
 * `matedtrack.epd`: Derived from `matetrackpv.epd` by applying a best move in all those positions, where the winning side is to move, and where a best move is known. The order of the positions in `matedtrack.epd` corresponds 1:1 to the order in `matetrack.epd`. So the new test suite still contains 6554 mate problems, but for 6547 of them the side to move is going to get mated. Observe that due to duplications, only 6529 of the latter positions are unique.
 * `mates2000.epd`: A smaller test suite with 2000 positions ranging from #1 to #27. It contains a random selection of positions from `matetrack.epd` and `matedtrack.epd` that Stockfish can solve with 1M nodes. In 1105 positions the side to move is going to get mated.
 * `cursed.epd`: A collection of 125 cursed wins and 189 cursed losses, where wins and losses are denoted by `bm #1` and `bm #-1', respectively.
+* `KRvK1000.epd`: A collection of 1000 KRvK endgames, ranging from #4 to #16. In 529 positions the side to move is going to get mated.
+* **`classic280.epd`**: A collection of 280 classic endgames, ranging from #10 to #21. In 53 positions the side to move is going to get mated. Obtained by sampling 40 positions each from the KRvK, KBNvK, KBBvK, KQvKP, KQvKR, KRPvKR, KBPvKB suites from [robertnurnberg/matetools](https://github.com/robertnurnberg/matetools).
 
 ### Automatic creation of new test positions
 

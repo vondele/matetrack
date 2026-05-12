@@ -7,44 +7,49 @@ trap 'echo "Error on line $LINENO: $BASH_COMMAND" >&2' ERR
 echo "started at: " $(date)
 
 # the repo displays all the revisions from sf_3 to now, excluding some commits
-sf3=aa2368a6878a867fe63247ee2adf2fde3dfe22be
-firstrev=$sf3
+# sf3=aa2368a6878a867fe63247ee2adf2fde3dfe22be
+sf11=c3483fa9a7d7c0ffa9fcc32b467ca844cfb63790
+firstrev=$sf11  # until the back-fill is complete, we start at sf_11
 lastrev=HEAD
 exclude=exclude_commits.sha
 nnuefile=nn-82215d0fd0df.nnue # a non-embedded master net
 
 # the repo uses 1M nodes for each position
 nodes=1000000
+suites="matetrack classic"
 
 # check if we run with the repo values
-[ "$firstrev" = "$sf3" ] && [ "$lastrev" = "HEAD" ] && [ "$nodes" = "1000000" ] && repo=yes || repo=no
+[ "$firstrev" = "$sf11" ] && [ "$lastrev" = "HEAD" ] && [ "$nodes" = "1000000" ] && repo=yes || repo=no
 
 # use compact file names for the repo
 if [ "$repo" = "yes" ]; then
-  csv=matetrack$nodes.csv # list of previously computed results
-  new=new$nodes.csv       # temporary list of newly computed results
+  suffix=$nodes # suffix for list of previously computed results
 else
-  csv=matetrack_"$firstrev"_"$lastrev"_"$nodes".csv
-  new=new_"$firstrev"_"$lastrev"_"$nodes".csv
+  suffix=_"$firstrev"_"$lastrev"_"$nodes"
 fi
 out=out.tmp # file for output from matecheck.py
 
-# if necessary, create a new csv file with the correct header
-if [[ ! -f $csv ]]; then
-  echo "Commit Date,Commit SHA,Positions,Mates,Best mates,Better mates,Wrong mates,Bad PVs,Release tag" >$csv
-fi
+for prefix in $suites; do
+  csv=$prefix$suffix.csv # list of previously computed results
+  new=new$csv            # temporary list of newly computed results
 
-# check if script is already running, using $new as lock file
-if [[ -f $new ]]; then
-  echo "ERROR: Found '$new', indicating the script is already running."
-  echo "HINT: Merge partial results and/or delete $new before trying again."
-  echo "      The former can be achieved with"
-  echo "      'cat $new >>$csv && rm $new'."
-  echo -e "\nABORTING"
-  exit 1
-else
-  touch $new
-fi
+  # if necessary, create a new csv file with the correct header
+  if [[ ! -f $csv ]]; then
+    echo "Commit Date,Commit SHA,Positions,Mates,Best mates,Better mates,Wrong mates,Bad PVs,Release tag" >$csv
+  fi
+
+  # check if script is already running, using $new as lock file
+  if [[ -f $new ]]; then
+    echo "ERROR: Found '$new', indicating the script is already running."
+    echo "HINT: Merge partial results and/or delete $new before trying again."
+    echo "      The former can be achieved with"
+    echo "      'cat $new >>$csv && rm $new'."
+    echo -e "\nABORTING"
+    exit 1
+  else
+    touch $new
+  fi
+done
 
 # clone SF (and download an old, non-embedded master net) as needed
 if [[ ! -e Stockfish ]]; then
@@ -78,7 +83,14 @@ cd ../..
 
 # go over the revision list and obtain missing results if necessary
 for rev in $revs; do
-  if ! grep -q "$rev" "$csv"; then
+  found=1
+  for prefix in $suites; do
+    csv=$prefix$suffix.csv
+    if ! grep -q "$rev" "$csv"; then
+      found=0
+    fi
+  done
+  if [ $found -ne 1 ]; then
     cd Stockfish/src
     git checkout $rev >&checkout2.log
     epoch=$(git show --pretty=fuller --date=iso-strict $rev | grep 'CommitDate' | awk '{print $NF}')
@@ -86,7 +98,7 @@ for rev in $revs; do
 
     # check if revision SHA is in non-comment section of exclude file
     if ! sed 's/#.*//' "../../$exclude" | grep -q "$rev"; then
-      echo "running matecheck on revision $rev "
+      echo "compiling revision $rev"
 
       # compile revision and get binary
       make clean >&clean.log
@@ -104,41 +116,67 @@ for rev in $revs; do
       if [ $nproc_use -gt 1 ]; then
         nproc_use=$((3 * nproc_use / 4))
       fi
-      nice python3 matecheck.py --engine ./stockfish --nodes $nodes --concurrency $nproc_use >&$out
+      for prefix in $suites; do
+        csv=$prefix$suffix.csv
+        new=new$csv
+        if ! grep -q "$rev" "$csv"; then
+          epdfile="matetrack.epd"
+          if [ "$prefix" == "classic" ]; then
+            epdfile="classic280.epd"
+          fi
+          echo "running matecheck on $epdfile"
+          nice python3 matecheck.py --epdFile $epdfile --nodes $nodes --concurrency $nproc_use >&$out
 
-      # collect results for this revision
-      total=$(grep "Total FENs:" $out | awk '{print $3}')
-      mates=$(grep "Found mates:" $out | awk '{print $3}')
-      bmates=$(grep "Best mates:" $out | awk '{print $3}')
-      better=$(grep "Better mates:" $out | awk '{print $3}')
-      wrong=$(grep "Wrong mates:" $out | awk '{print $3}')
-      badpvs=$(grep "Bad PVs:" $out | awk '{print $3}')
+          # collect results for this revision
+          total=$(grep "Total FENs:" $out | awk '{print $3}')
+          mates=$(grep "Found mates:" $out | awk '{print $3}')
+          bmates=$(grep "Best mates:" $out | awk '{print $3}')
+          better=$(grep "Better mates:" $out | awk '{print $3}')
+          wrong=$(grep "Wrong mates:" $out | awk '{print $3}')
+          badpvs=$(grep "Bad PVs:" $out | awk '{print $3}')
 
-      # save wrong/better mates and wrong or incomplete PVs for possible debugging
-      if grep -q issues $out; then
-        mv $out out$nodes.$rev
-      fi
+          # save wrong/better mates and wrong or incomplete PVs for possible debugging
+          if grep -q issues $out; then
+            mv $out out$prefix$suffix.$rev
+          fi
+          echo "$epoch,$rev,$total,$mates,$bmates,$better,$wrong,$badpvs,$tag" >>$new
+        fi
+      done
     else
-      echo "skipping non-viable revision $rev "
       cd ../..
-      total= mates= bmates= better= wrong= badpvs=
+      for prefix in $suites; do
+        csv=$prefix$suffix.csv
+        new=new$csv
+        if ! grep -q "$rev" "$csv"; then
+          echo "skipping non-viable revision $rev"
+          total= mates= bmates= better= wrong= badpvs=
+          echo "$epoch,$rev,$total,$mates,$bmates,$better,$wrong,$badpvs,$tag" >>$new
+        fi
+      done
     fi
-    echo "$epoch,$rev,$total,$mates,$bmates,$better,$wrong,$badpvs,$tag" >>$new
   fi
 done
 
-if [ -s $new ]; then
-  cat $new >>$csv
-  rm $new
-  python3 plotdata.py $csv
+for prefix in $suites; do
+  csv=$prefix$suffix.csv
+  new=new$csv
+  if [ -s $new ]; then
+    cat $new >>$csv
+    rm $new
+    epdfile="matetrack.epd"
+    if [ "$prefix" == "classic" ]; then
+      epdfile="classic280.epd"
+    fi
+    python3 plotdata.py $csv --epdFile $epdfile
 
-  if [ "$repo" = "yes" ]; then
-    git add $csv matetrack$nodes.png matetrack"$nodes"all.png
-    git diff --staged --quiet || git commit -m "Update results"
-    git push origin master >&push.log
+    if [ "$repo" = "yes" ]; then
+      git add $csv $prefix$nodes.png $prefix"$nodes"all.png
+      git diff --staged --quiet || git commit -m "Update results"
+      git push origin master >&push.log
+    fi
+  else
+    rm -f $new
   fi
-else
-  rm -f $new
-fi
+done
 
 echo "ended at: " $(date)
