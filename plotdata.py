@@ -28,7 +28,7 @@ class matedata:
                         )
                         self.tags.append(parts[-1])
 
-    def create_graph(self, epdFile, plotAll=False, showGoatLines=False):
+    def create_graph(self, epdName, plotAll=False, showGoatLines=False):
         # plotAll=True: full history, against date, single y-axis
         # plotAll=False: last 50 commits, against commit, two y-axes
         plotStart = 0 if plotAll else -50
@@ -57,7 +57,7 @@ class matedata:
                 rotation_mode="anchor",
                 fontsize=6,
             )
-            ax.grid(alpha=0.4, linewidth=0.5)
+            ax.grid(axis="y", alpha=0.4, linewidth=0.5)
             # increase the size of the two dots in the legend
             lgnd = ax.legend()
             try:
@@ -118,19 +118,23 @@ class matedata:
                     weight="bold",
                 )
 
+        ymin, ymax = ax.get_ylim()
+        ytext, va = (ymax, "top") if epdName == "classic280" else (ymin, "bottom")
+
         # add release labels
         for i, txt in enumerate(t):
             if txt:
-                shortArrow = txt in ["sf_13", "sf_14.1"]
+                ax.axvline(
+                    x=d[i], color="gray", linestyle="--", linewidth=0.5, alpha=0.5
+                )
+
                 ax.annotate(
-                    txt,
-                    xy=(d[i], b[i]),
-                    xycoords="data",
-                    xytext=(-7, 30 - plotAll * (60 - shortArrow * 5)),
-                    textcoords="offset points",
-                    arrowprops=dict(arrowstyle="->", color="black"),
+                    " " + txt,
+                    xy=(d[i], ytext),
+                    rotation=90,
+                    ha="center",
+                    va=va,
                     fontsize=5,
-                    weight="bold",
                 )
 
         # add GOAT labels
@@ -145,7 +149,7 @@ class matedata:
                     dataset[maxIndex],
                 ),
                 xycoords="data",
-                xytext=(-30, 0),
+                xytext=(-30, 5 - 12 * bool(epdName == "classic280")),
                 textcoords="offset points",
                 arrowprops=dict(arrowstyle="->", color="black"),
                 fontsize=5,
@@ -173,7 +177,7 @@ class matedata:
         elif nodes.endswith("0" * 3):
             nodes = nodes[:-3] + "K"
         ax.set_title(
-            f"(Mates found with {nodes} nodes per position on {epdFile}"
+            f"(Mates found with {nodes} nodes per position on {epdName}.epd"
             + (f" for last {-plotStart} commits.)" if not plotAll else ".)"),
             fontsize=6,
             family="monospace",
@@ -192,14 +196,10 @@ if __name__ == "__main__":
         help="file with statistics over time",
         default="matetrack1000000.csv",
     )
-    parser.add_argument(
-        "--epdFile",
-        help="filename of the puzzle suite",
-        default="matetrack.epd",
-    )
     args = parser.parse_args()
 
     prefix, _, _ = args.filename.partition(".csv")
     data = matedata(prefix)
-    data.create_graph(args.epdFile, showGoatLines=False)
-    data.create_graph(args.epdFile, plotAll=True)
+    epdName = "classic280" if prefix[:7] == "classic" else "matetrack"
+    data.create_graph(epdName, showGoatLines=False)
+    data.create_graph(epdName, plotAll=True)
