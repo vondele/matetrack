@@ -7,9 +7,8 @@ trap 'echo "Error on line $LINENO: $BASH_COMMAND" >&2' ERR
 echo "started at: " $(date)
 
 # the repo displays all the revisions from sf_3 to now, excluding some commits
-# sf3=aa2368a6878a867fe63247ee2adf2fde3dfe22be
-sf11=c3483fa9a7d7c0ffa9fcc32b467ca844cfb63790
-firstrev=$sf11  # until the back-fill is complete, we start at sf_11
+sf3=aa2368a6878a867fe63247ee2adf2fde3dfe22be
+firstrev=$sf3
 lastrev=HEAD
 exclude=exclude_commits.sha
 nnuefile=nn-82215d0fd0df.nnue # a non-embedded master net
@@ -19,7 +18,7 @@ nodes=1000000
 suites="matetrack classic"
 
 # check if we run with the repo values
-[ "$firstrev" = "$sf11" ] && [ "$lastrev" = "HEAD" ] && [ "$nodes" = "1000000" ] && repo=yes || repo=no
+[ "$firstrev" = "$sf3" ] && [ "$lastrev" = "HEAD" ] && [ "$nodes" = "1000000" ] && repo=yes || repo=no
 
 # use compact file names for the repo
 if [ "$repo" = "yes" ]; then
@@ -163,11 +162,7 @@ for prefix in $suites; do
   if [ -s $new ]; then
     cat $new >>$csv
     rm $new
-    epdfile="matetrack.epd"
-    if [ "$prefix" == "classic" ]; then
-      epdfile="classic280.epd"
-    fi
-    python3 plotdata.py $csv --epdFile $epdfile
+    python3 plotdata.py $csv
 
     if [ "$repo" = "yes" ]; then
       git add $csv $prefix$nodes.png $prefix"$nodes"all.png

@@ -7,7 +7,7 @@ from datetime import datetime
 class matedata:
     def __init__(self, prefix):
         self.prefix = prefix
-        self.date = []  # datetime entries
+        self.dates = []  # datetime entries
         self.mates = []  # mates
         self.bmates = []  # best mates
         self.issues = []  # sum of better mates, wrong mates, bad PVs
@@ -19,21 +19,27 @@ class matedata:
                     continue
                 if line:
                     parts = line.split(",")
-                    if parts[2]:  # ignore skipped commits
-                        self.date.append(datetime.fromisoformat(parts[0]))
-                        self.mates.append(int(parts[3]))
-                        self.bmates.append(int(parts[4]))
-                        self.issues.append(
-                            sum(int(parts[i]) for i in [5, 6, 7] if parts[i])
+                    mates, bmates, issues = (
+                        (
+                            int(parts[3]),
+                            int(parts[4]),
+                            sum(int(parts[i]) for i in [5, 6, 7] if parts[i]),
                         )
-                        self.tags.append(parts[-1])
+                        if parts[2]
+                        else (None,) * 3
+                    )
+                    self.dates.append(datetime.fromisoformat(parts[0]))
+                    self.mates.append(mates)
+                    self.bmates.append(bmates)
+                    self.issues.append(issues)
+                    self.tags.append(parts[-1])
 
-    def create_graph(self, epdFile, plotAll=False, showGoatLines=False):
+    def create_graph(self, epdName, plotAll=False, showGoatLines=False):
         # plotAll=True: full history, against date, single y-axis
         # plotAll=False: last 50 commits, against commit, two y-axes
         plotStart = 0 if plotAll else -50
-        d, m, b, i, t = (
-            self.date[plotStart:],
+        dates, mates, bmates, issues, tags = (
+            self.dates[plotStart:],
             self.mates[plotStart:],
             self.bmates[plotStart:],
             self.issues[plotStart:],
@@ -45,8 +51,10 @@ class matedata:
 
         if plotAll:
             dotSize = 1
-            bmate = ax.scatter(d, m, label="mates", color=mateColor, s=dotSize)
-            mate = ax.scatter(d, b, label="best mates", color=bmateColor, s=dotSize)
+            axms = ax.scatter(dates, mates, label="mates", color=mateColor, s=dotSize)
+            axbms = ax.scatter(
+                dates, bmates, label="best mates", color=bmateColor, s=dotSize
+            )
             ax.set_ylabel("# of mates", color=yColor)
             ax.tick_params(axis="y", labelcolor=yColor)
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
@@ -57,7 +65,7 @@ class matedata:
                 rotation_mode="anchor",
                 fontsize=6,
             )
-            ax.grid(alpha=0.4, linewidth=0.5)
+            ax.grid(axis="y", alpha=0.4, linewidth=0.5)
             # increase the size of the two dots in the legend
             lgnd = ax.legend()
             try:
@@ -67,42 +75,52 @@ class matedata:
             for handle in handles:
                 handle.set_sizes([8])
             # now reduce opacity for the dots in the plot itself
-            bmate.set_alpha(0.25)
-            mate.set_alpha(0.25)
+            for a in [axms, axbms]:
+                a.set_alpha(0.25)
         else:
-            d = list(range(1 - len(d), 1))
+            dates = list(range(1 - len(dates), 1))
             ax2 = ax.twinx()
             bmateDotSize, bmateLineWidth = 25, 0.75
             mateDotSize, mateLineWidth, mateAlpha = 5, 0.2, 0.5
             ax2.scatter(
-                d, m, label="mates", color=mateColor, s=mateDotSize, alpha=mateAlpha
+                dates,
+                mates,
+                label="mates",
+                color=mateColor,
+                s=mateDotSize,
+                alpha=mateAlpha,
             )
-            ax.scatter(d, b, label="best mates", color=bmateColor, s=bmateDotSize)
-            ax2.plot(d, m, color=mateColor, linewidth=mateLineWidth, alpha=mateAlpha)
-            ax.plot(d, b, color=bmateColor, linewidth=bmateLineWidth)
+            ax.scatter(
+                dates, bmates, label="best mates", color=bmateColor, s=bmateDotSize
+            )
+            ax2.plot(
+                dates, mates, color=mateColor, linewidth=mateLineWidth, alpha=mateAlpha
+            )
+            ax.plot(dates, bmates, color=bmateColor, linewidth=bmateLineWidth)
             ax.set_ylabel("# of best mates", color=bmateColor)
             ax.tick_params(axis="y", labelcolor=bmateColor)
             ax2.set_ylabel("# of mates", color=mateColor)
             ax2.tick_params(axis="y", labelcolor=mateColor, labelsize=7)
-            if sum(i):
+            if sum(v for v in issues if v is not None):
                 color, label = (
                     ("red", "needs investigation")
-                    if i[-1]
+                    if issues[-1]
                     else ("orange", "needed investigation")
                 )
-                issueIdx = [idx for idx, val in enumerate(i) if val]
+                issueIdx = [idx for idx, val in enumerate(issues) if val]
                 ax2.scatter(
-                    [d[idx] for idx in issueIdx],
-                    [m[idx] for idx in issueIdx],
+                    [dates[idx] for idx in issueIdx],
+                    [mates[idx] for idx in issueIdx],
                     label=label,
                     color=color,
                     s=bmateDotSize,
                 )
                 ax2.legend()
             for Idx, (s, dat, col) in enumerate(
-                [("best mates", b, bmateColor), ("mates", m, mateColor)]
+                [("best mates", bmates, bmateColor), ("mates", mates, mateColor)]
             ):
-                datmin, datmax = min(dat), max(dat)
+                cleandat = [d for d in dat if d is not None]
+                datmin, datmax = min(cleandat), max(cleandat)
                 datmean = (datmin + datmax) // 2
                 datpct = datmax * 100 / max(datmean, 1) - 100
                 datStr = f"{s}$\subset$[{datmin},{datmax}]$\\approx${datmean}$\pm${datpct:.1f}%"
@@ -118,34 +136,38 @@ class matedata:
                     weight="bold",
                 )
 
+        ymin, ymax = ax.get_ylim()
+        ytext, va = (ymax, "top") if epdName == "classic280" else (ymin, "bottom")
+
         # add release labels
-        for i, txt in enumerate(t):
+        for i, txt in enumerate(tags):
             if txt:
-                shortArrow = txt in ["sf_13", "sf_14.1"]
+                ax.axvline(
+                    x=dates[i], color="gray", linestyle="--", linewidth=0.5, alpha=0.5
+                )
+
                 ax.annotate(
-                    txt,
-                    xy=(d[i], b[i]),
-                    xycoords="data",
-                    xytext=(-7, 30 - plotAll * (60 - shortArrow * 5)),
-                    textcoords="offset points",
-                    arrowprops=dict(arrowstyle="->", color="black"),
+                    " " + txt,
+                    xy=(dates[i], ytext),
+                    rotation=90,
+                    ha="center",
+                    va=va,
                     fontsize=5,
-                    weight="bold",
                 )
 
         # add GOAT labels
         for dataset in [self.mates, self.bmates]:
-            maxValue = max(dataset)
+            maxValue = max(m for m in dataset if m is not None)
             maxIndex = dataset.index(maxValue)
             usedAxis = ax2 if not plotAll and dataset == self.mates else ax
             usedAxis.annotate(
                 "GOAT",
                 xy=(
-                    self.date[maxIndex] if plotAll else maxIndex - len(dataset),
+                    self.dates[maxIndex] if plotAll else 1 + maxIndex - len(dataset),
                     dataset[maxIndex],
                 ),
                 xycoords="data",
-                xytext=(-30, 0),
+                xytext=(-30, 5 - 12 * bool(epdName == "classic280")),
                 textcoords="offset points",
                 arrowprops=dict(arrowstyle="->", color="black"),
                 fontsize=5,
@@ -158,7 +180,7 @@ class matedata:
             )
             yt = list(usedAxis.get_yticks())
             ytGap = yt[1] - yt[0] if len(yt) > 1 else 0
-            if min(dataset[plotStart:]) > yt[1]:
+            if min(m for m in dataset[plotStart:] if m is not None) > yt[1]:
                 yt.pop(0)
             usedAxis.set_yticks(
                 [t for t in yt if t < maxValue - 0.5 * ytGap] + [maxValue]
@@ -173,7 +195,7 @@ class matedata:
         elif nodes.endswith("0" * 3):
             nodes = nodes[:-3] + "K"
         ax.set_title(
-            f"(Mates found with {nodes} nodes per position on {epdFile}"
+            f"(Mates found with {nodes} nodes per position on {epdName}.epd"
             + (f" for last {-plotStart} commits.)" if not plotAll else ".)"),
             fontsize=6,
             family="monospace",
@@ -192,14 +214,10 @@ if __name__ == "__main__":
         help="file with statistics over time",
         default="matetrack1000000.csv",
     )
-    parser.add_argument(
-        "--epdFile",
-        help="filename of the puzzle suite",
-        default="matetrack.epd",
-    )
     args = parser.parse_args()
 
     prefix, _, _ = args.filename.partition(".csv")
     data = matedata(prefix)
-    data.create_graph(args.epdFile, showGoatLines=False)
-    data.create_graph(args.epdFile, plotAll=True)
+    epdName = "classic280" if prefix[:7] == "classic" else "matetrack"
+    data.create_graph(epdName, showGoatLines=False)
+    data.create_graph(epdName, plotAll=True)
