@@ -166,12 +166,15 @@ for prefix in $suites; do
 
     if [ "$repo" = "yes" ]; then
       git add $csv $prefix$nodes.png $prefix"$nodes"all.png
-      git diff --staged --quiet || git commit -m "Update results"
-      git push origin master >&push.log
     fi
   else
     rm -f $new
   fi
 done
+
+if [ "$repo" = "yes" ]; then
+  git diff --staged --quiet || git commit -m "Update results"
+  git push origin master >&push.log
+fi
 
 echo "ended at: " $(date)
