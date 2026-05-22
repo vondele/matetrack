@@ -73,7 +73,7 @@ options:
   --bmMin BMMIN         lower limit for |bm| for positions to analyse (default: None)
   --bmMax BMMAX         upper limit for |bm| for positions to analyse (default: None)
   --showAllIssues       show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue (default: False)
-  --shortTBPVonly       for TB win scores, only consider short PVs an issue (default: False)
+  --shortTBPVonly       for TB win scores, only consider short PVs and wrong TB entries an issue (default: False)
   --showAllStats        show nodes and depth statistics for best mates found (always True if --mate is supplied) (default: False)
   --bench               provide cumulative statistics for nodes searched and time used (default: False)
   --logFile LOGFILE     optional file to log the engine's output while it is analysing (default: None)
@@ -120,3 +120,12 @@ Similarly, a file with only `#-10` positions can be created with the command
 ```shell
 python advancepvs.py --targetMate -10 && grep 'bm #-10;' matedtrackpv.epd | awk -F'; PV' '\!seen[$1]++' > mate-10.epd
 ```
+
+### Comprehensive engine check
+
+The script `check_engine.sh` can be used to verify that an engine conforms to
+the expected behaviour in mate score announcements and the associated PVs.
+Run `./check_engine.sh --engine ./engine_name` to essentially run the Stockfish
+matetrack CI for the given engine, or alternatively run e.g.
+`./check_engine.sh --engine ./engine_name --nodes 100 --time 0 --goMateNodes 0`
+for a much quicker check.

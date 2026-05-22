@@ -60,15 +60,16 @@ def pv_status(fen, mate, score, pv, tb=None, maxTBscore=0):
                 if wdl is None:
                     plies_to_tb += 1
                 else:
+                    entry = "" if entered_tb else "TB entry at "
                     entered_tb = True
                     if abs(wdl) != 2:
-                        return f"draw: wdl = {wdl} at ply {ply} for {board.epd()}"
-                    if ply % 2 == losing_side and wdl != -2:
                         return (
-                            f"wrong: wdl = {wdl} != -2 at ply {ply} for {board.epd()}"
+                            f"draw: wdl = {wdl} at {entry}ply {ply} for {board.epd()}"
                         )
+                    if ply % 2 == losing_side and wdl != -2:
+                        return f"wrong: wdl = {wdl} != -2 at {entry}ply {ply} for {board.epd()}"
                     if ply % 2 != losing_side and wdl != 2:
-                        return f"wrong: wdl = {wdl} != 2 at ply {ply} for {board.epd()}"
+                        return f"wrong: wdl = {wdl} != 2 at {entry}ply {ply} for {board.epd()}"
             uci = chess.Move.from_uci(move)
             if uci not in board.legal_moves:
                 raise Exception(f"illegal move {move} at position {board.epd()}")
@@ -307,7 +308,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--shortTBPVonly",
         action="store_true",
-        help="for TB win scores, only consider short PVs an issue",
+        help="for TB win scores, only consider short PVs and wrong TB entries an issue",
     )
     parser.add_argument(
         "--showAllStats",
@@ -428,7 +429,7 @@ if __name__ == "__main__":
         + " ".join([f"--{k} {v}" for k, v in limits if v is not None])
     )
 
-    print(f"\nMatetrack started for {msg} ...")
+    print(f"\nMatetrack started for {msg} ...", flush=True)
     engine = chess.engine.SimpleEngine.popen_uci(args.engine)
     name = engine.id.get("name", "")
     engine.quit()
@@ -524,7 +525,11 @@ if __name__ == "__main__":
                     status = pv_status(
                         fen, mate, score, pv.split(), tb, args.maxTBscore
                     )
-                    if status != "ok" and not args.shortTBPVonly or status == "short":
+                    if (
+                        (status != "ok" and not args.shortTBPVonly)
+                        or status == "short"
+                        or "TB entry" in status
+                    ):
                         issue["Bad PVs"][0] += 1
                         if not found_badpv or args.showAllIssues:
                             issue["Bad PVs"][1] += int(not found_badpv)
