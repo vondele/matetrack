@@ -167,6 +167,7 @@ class Analyser:
                         temp_score = info["score"].pov(board.turn)
                         temp_m = temp_score.mate()
                         temp_score = temp_score.score()
+                        m = score = None
                         if "upperbound" in info or "lowerbound" in info:
                             if temp_m:
                                 pvstatus[temp_m, None, "bound"] = "", False
@@ -177,6 +178,7 @@ class Analyser:
                             or score is None
                             or abs(score) < self.minTBscore
                         ):
+                            score = None
                             continue
                         pv = [m.uci() for m in info["pv"]] if "pv" in info else []
                         pvstr = " ".join(pv)
