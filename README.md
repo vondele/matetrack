@@ -36,7 +36,7 @@ with the raw data in [`classic1000000.csv`](classic1000000.csv).
 ### Usage of `matecheck.py`
 
 ```
-usage: matecheck.py [-h] [--engine ENGINE] [--timeout TIMEOUT] [--nodes NODES] [--depth DEPTH] [--time TIME] [--timeinc TIMEINC] [--mate MATE] [--hash HASH] [--threads THREADS] [--multiPV MULTIPV] [--syzygyPath SYZYGYPATH] [--syzygy50MoveRule SYZYGY50MOVERULE] [--maxTBscore MAXTBSCORE] [--minTBscore MINTBSCORE] [--maxValidMate MAXVALIDMATE] [--minValidMate MINVALIDMATE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--epdFile EPDFILE [EPDFILE ...]] [--bmMin BMMIN] [--bmMax BMMAX] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench] [--logFile LOGFILE] [--foundMatesFile FOUNDMATESFILE]
+usage: matecheck.py [-h] [--engine ENGINE] [--timeout TIMEOUT] [--nodes NODES] [--depth DEPTH] [--time TIME] [--timeinc TIMEINC] [--mate MATE] [--hash HASH] [--threads THREADS] [--multiPV MULTIPV] [--checkMultiPVs] [--syzygyPath SYZYGYPATH] [--syzygy50MoveRule SYZYGY50MOVERULE] [--maxTBscore MAXTBSCORE] [--minTBscore MINTBSCORE] [--maxValidMate MAXVALIDMATE] [--minValidMate MINVALIDMATE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--epdFile EPDFILE [EPDFILE ...]] [--bmMin BMMIN] [--bmMax BMMAX] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench] [--logFile LOGFILE] [--foundMatesFile FOUNDMATESFILE]
 
 Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".
 
@@ -51,11 +51,12 @@ options:
   --mate MATE           mate limit per position: a value of 0 will use bm #X as the limit, a positive value (in the absence of other limits) means only elegible positions will be analysed (default: None)
   --hash HASH           hash table size in MB (default: None)
   --threads THREADS     number of threads per position (values > 1 may lead to non-deterministic results) (default: None)
-  --multiPV MULTIPV     maximal number of lines to search per position (default: None)
+  --multiPV MULTIPV     maximal number of lines to search per position, decisive scores in secondary lines are checked for validity (default: None)
+  --checkMultiPVs       also check PVs of secondary decisive scores for correctness and completeness (default: False)
   --syzygyPath SYZYGYPATH
                         path(s) to syzygy EGTBs, with ':'/';' as separator on Linux/Windows (default: None)
   --syzygy50MoveRule SYZYGY50MOVERULE
-                        Count cursed wins as wins if set to "False". (default: None)
+                        count cursed wins as wins if set to "False" (default: None)
   --maxTBscore MAXTBSCORE
                         highest cp score for a TB win: if nonzero, it is assumed that (MAXTBSCORE - |score|) is distance in plies to first zeroing move in(to) TB (default: 20000)
   --minTBscore MINTBSCORE
