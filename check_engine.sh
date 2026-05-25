@@ -31,6 +31,7 @@ MAXTBSCORE=$DEFAULT_MAXTBSCORE
 MINTBSCORE=$DEFAULT_MINTBSCORE
 MAXVALIDMATE=$DEFAULT_MAXVALIDMATE
 MINVALIDMATE=$DEFAULT_MINVALIDMATE
+CHECKMULTIPVS=""
 
 FAILS=0
 
@@ -83,6 +84,9 @@ while [[ "$#" -gt 0 ]]; do
     MINVALIDMATE="$2"
     shift
     ;;
+  --checkMultiPVs)
+    CHECKMULTIPVS="true"
+    ;;
   -h | --help)
     echo "Usage: $0 [OPTIONS]"
     echo "Options:"
@@ -93,6 +97,7 @@ while [[ "$#" -gt 0 ]]; do
     echo "  --time <value>            Number of seconds per position for gameplay tests (default: $DEFAULT_TIME)"
     echo "  --timeinc <value>         Time increment (in seconds) for gameplay tests (default: $DEFAULT_TIMEINC)"
     echo "  -c, --concurrency <value> Total number of threads script may use (default: $DEFAULT_CONCURRENCY)"
+    echo "  --checkMultiPVs           Parameter passed to matecheck.py"
     echo "  --shortTBPVonly           Parameter passed to matecheck.py"
     echo "  --maxTBscore <value>      Parameter passed to matecheck.py (default: $DEFAULT_MAXTBSCORE)"
     echo "  --minTBscore <value>      Parameter passed to matecheck.py (default: $DEFAULT_MINTBSCORE)"
@@ -124,18 +129,21 @@ fi
 UCI=$(printf "uci\nquit" | "$ENGINE")
 
 SCORES="mate"
-SHORTTBPVONLY_ARGS=()
+FLAG_ARGS=()
 if [ -n "$SYZYGY_PATH" ]; then
   SCORES="mate/TB"
   if [ -n "$SHORTTBPVONLY" ]; then
-    SHORTTBPVONLY_ARGS=("--shortTBPVonly")
+    FLAG_ARGS=("--shortTBPVonly")
   fi
+fi
+if [ -n "$CHECKMULTIPVS" ]; then
+  FLAG_ARGS+=("--checkMultiPVs")
 fi
 
 echo "Checking $ENGINE for correct $SCORES scores and complete PVs..."
 
 # Explicitly state unseen CLI option changes (the remainder can be seen from output)
-CLI_CHANGES=""
+CLI_CHANGES="${FLAG_ARGS[@]}"
 if [ "$MAXTBSCORE" -ne "$DEFAULT_MAXTBSCORE" ]; then
   CLI_CHANGES=$CLI_CHANGES" --maxTBscore $MAXTBSCORE"
 fi
@@ -149,7 +157,7 @@ if [ "$MINVALIDMATE" -ne "$DEFAULT_MINVALIDMATE" ]; then
   CLI_CHANGES=$CLI_CHANGES" --minValidMate $MINVALIDMATE"
 fi
 if [ -n "$CLI_CHANGES" ]; then
-  echo "Running with the non-default option(s)$CLI_CHANGES"
+  echo "Running with the non-default option(s) $CLI_CHANGES"
 fi
 
 run_test() {
@@ -177,15 +185,15 @@ run_suite() {
   fi
 
   for th in 1 4; do
-    run_test "th$th standard$egtb" "matecheck$th$suffix" "${SYZYGY_ARGS[@]}" "${SHORTTBPVONLY_ARGS[@]}" --engine "$ENGINE" --epdFile mates2000.epd --nodes "$NODES" --threads "$th"
+    run_test "th$th standard$egtb" "matecheck$th$suffix" "${SYZYGY_ARGS[@]}" "${FLAG_ARGS[@]}" --engine "$ENGINE" --epdFile mates2000.epd --nodes "$NODES" --threads "$th"
 
     # In gameplay PVs for TB wins/losses are usually unreliable within the EGTB.
-    run_test "th$th gameplay$egtb" "matecheck${th}g$suffix" "${SYZYGY_ARGS[@]}" --shortTBPVonly --engine "$ENGINE" --epdFile mates2000.epd --time "$TIME" --timeinc "$TIMEINC" --threads "$th"
+    run_test "th$th gameplay$egtb" "matecheck${th}g$suffix" "${SYZYGY_ARGS[@]}" "${FLAG_ARGS[@]}" --shortTBPVonly --engine "$ENGINE" --epdFile mates2000.epd --time "$TIME" --timeinc "$TIMEINC" --threads "$th"
 
     if [ "$GOMATENODES" -eq "0" ]; then
       echo -e "\n${BOLD}--- Skipping: th$th go-mate$egtb ---$NOCOL"
     else
-      run_test "th$th go-mate$egtb" "matecheck${th}gm$suffix" "${SYZYGY_ARGS[@]}" "${SHORTTBPVONLY_ARGS[@]}" --engine "$ENGINE" --epdFile matetrack.epd matedtrack.epd --bmMax 2 --mate 0 --nodes "$GOMATENODES" --threads "$th"
+      run_test "th$th go-mate$egtb" "matecheck${th}gm$suffix" "${SYZYGY_ARGS[@]}" "${FLAG_ARGS[@]}" --engine "$ENGINE" --epdFile matetrack.epd matedtrack.epd --bmMax 2 --mate 0 --nodes "$GOMATENODES" --threads "$th"
 
       total=$(grep "Total FENs:" "matecheck${th}gm$suffix" | awk '{print $3}')
       bmates=$(grep "Best mates:" "matecheck${th}gm$suffix" | awk '{print $3}')
@@ -199,7 +207,7 @@ run_suite() {
     if ! echo "$UCI" | grep -q "MultiPV"; then
       echo -e "\n${RED}WARNING: Engine does not support UCI option MultiPV. Skipping th$th multiPV$egtb.$NOCOL"
     else
-      run_test "th$th multiPV$egtb" "matecheck${th}mpv$suffix" "${SYZYGY_ARGS[@]}" "${SHORTTBPVONLY_ARGS[@]}" --engine "$ENGINE" --epdFile mates2000.epd --nodes "$NODES" --multiPV 4 --threads "$th"
+      run_test "th$th multiPV$egtb" "matecheck${th}mpv$suffix" "${SYZYGY_ARGS[@]}" "${FLAG_ARGS[@]}" --engine "$ENGINE" --epdFile mates2000.epd --nodes "$NODES" --multiPV 4 --threads "$th"
     fi
   done
 }
@@ -218,7 +226,7 @@ if [ -n "$SYZYGY_PATH" ]; then
       grep 5men cursed.epd >cursed5.epd
 
       for th in 1 4; do
-        run_test "th$th --syzygy50MoveRule false" "matecheckcursed${th}.egtb.out" --syzygyPath "$SYZYGY_PATH" "${SHORTTBPVONLY_ARGS[@]}" --engine "$ENGINE" --epdFile cursed5.epd --nodes "$NODES" --threads "$th" --syzygy50MoveRule false
+        run_test "th$th --syzygy50MoveRule false" "matecheckcursed${th}.egtb.out" --syzygyPath "$SYZYGY_PATH" "${FLAG_ARGS[@]}" --engine "$ENGINE" --epdFile cursed5.epd --nodes "$NODES" --threads "$th" --syzygy50MoveRule false
 
         mates=$(grep "Found mates:" "matecheckcursed${th}.egtb.out" | awk '{print $3}')
         tbwins=$(grep "Found TB wins:" "matecheckcursed${th}.egtb.out" | awk '{print $4}')
