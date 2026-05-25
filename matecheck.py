@@ -126,6 +126,7 @@ class Analyser:
         self.hash = args.hash
         self.threads = args.threads
         self.multiPV = args.multiPV
+        self.checkMultiPVs = args.checkMultiPVs
         self.syzygyPath = args.syzygyPath
         self.syzygy50MoveRule = args.syzygy50MoveRule
         self.minTBscore = args.minTBscore
@@ -155,41 +156,44 @@ class Analyser:
                 )
             else:
                 limit = self.limit
-            lastnodes = 0
-            lasttime = 0
+            lastkey = None
             with engine.analysis(
                 board, limit, multipv=self.multiPV, game=board
             ) as analysis:
                 for info in analysis:
                     lastnodes = info.get("nodes", lastnodes)
                     lasttime = info.get("time", lasttime)
-                    if info.get("multipv", 1) == 1 and "score" in info:
+                    if "score" in info:
+                        multipv = info.get("multipv", 1)
                         temp_score = info["score"].pov(board.turn)
                         temp_m = temp_score.mate()
-                        temp_score = temp_score.score()
-                        m = score = None
+                        if multipv == 1:
+                            lastkey = None
                         if "upperbound" in info or "lowerbound" in info:
                             if temp_m:
-                                pvstatus[temp_m, None, "bound"] = "", False
+                                pvstatus[multipv, temp_m, None, "bound"] = "", False
                             continue
-                        m, score = temp_m, temp_score
+                        m, score = temp_m, temp_score.score()
                         if m is None and (
                             self.syzygyPath is None
                             or score is None
                             or abs(score) < self.minTBscore
                         ):
-                            score = None
                             continue
                         pv = [m.uci() for m in info["pv"]] if "pv" in info else []
                         pvstr = " ".join(pv)
-                        if (m, score, pvstr) not in pvstatus:
-                            pvstatus[m, score, pvstr] = (
-                                pv_status(fen, m, score, pv) if m else "None"
+                        if (multipv, m, score, pvstr) not in pvstatus:
+                            pvstatus[multipv, m, score, pvstr] = (
+                                pv_status(fen, m, score, pv)
+                                if m and (multipv == 1 or self.checkMultiPVs)
+                                else "None"
                             ), False
-                        nodes = lastnodes
-                        depth = info.get("depth", 0)
-            if (m, score, pvstr) in pvstatus:  # mark final info line
-                pvstatus[m, score, pvstr] = pvstatus[m, score, pvstr][0], True
+                        if multipv == 1:
+                            nodes = lastnodes
+                            depth = info.get("depth", 0)
+                            lastkey = 1, m, score, pvstr
+            if lastkey in pvstatus:  # mark final info line
+                pvstatus[lastkey] = pvstatus[lastkey][0], True
             result_fens.append((fen, bm, pvstatus, nodes, depth, lastnodes, lasttime))
 
         engine.quit()
@@ -241,7 +245,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--multiPV",
         type=int,
-        help="maximal number of lines to search per position",
+        help="maximal number of lines to search per position, decisive scores in secondary lines are checked for validity",
+    )
+    parser.add_argument(
+        "--checkMultiPVs",
+        action="store_true",
+        help="also check PVs of secondary decisive scores for correctness and completeness",
     )
     parser.add_argument(
         "--syzygyPath",
@@ -249,7 +258,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--syzygy50MoveRule",
-        help='Count cursed wins as wins if set to "False".',
+        help='count cursed wins as wins if set to "False"',
     )
     parser.add_argument(
         "--maxTBscore",
@@ -455,34 +464,48 @@ if __name__ == "__main__":
         tb = TB(args.syzygyPath, args.syzygy50MoveRule)
         c = 0
         for _, _, pvstatus, _, _, _, _ in res:
-            c += sum(1 for (_, score, _) in pvstatus if score is not None)
+            c += sum(
+                1
+                for (multipv, _, score, _) in pvstatus
+                if multipv == 1 or args.checkMultiPVs
+                if score is not None
+            )
         if c:
-            print(f"Checking {c} TB win PVs. This may take some time ...")
+            print(f"Checking up to {c} TB win PVs. This may take some time ...")
 
     mates = bestmates = tbwins = 0
-    issue = {
-        "Invalid mate scores": [0, 0],
-        "Better mates": [0, 0],
-        "Wrong mates": [0, 0],
-        "Bad PVs": [0, 0],
-        "Wrong TB score": [0, 0],
-    }
+    issue = {}
+    for txt in [
+        "Invalid mate scores",
+        "Better mates",
+        "Wrong mates",
+        "Bad PVs",
+        "Wrong TB score",
+    ]:
+        for prefix in ["", "MultiPV "]:
+            issue[prefix + txt] = [0, 0]
     bestnodes = [[] for _ in range(maxbm + 1)]
     bestdepth = [[] for _ in range(maxbm + 1)]
     foundmates = {}
     for fen, bestmate, pvstatus, nodes, depth, _, _ in res:
-        found_invalid = found_better = found_wrong = False
-        found_badpv = found_wrong_tb = False
-        for (mate, score, pv), (status, last_line) in pvstatus.items():
+        found_issues = set()
+
+        def record_issue(multipv, key, txt):
+            if multipv != 1:
+                key = "MultiPV " + key
+                txt = f"multipv{multipv}: " + txt
+            issue[key][0] += 1
+            first_time = key not in found_issues
+            if first_time or args.showAllIssues:
+                issue[key][1] += int(first_time)
+                found_issues.add(key)
+                print(txt)
+
+        for (multipv, mate, score, pv), (status, last_line) in pvstatus.items():
             if mate:
                 if mate > args.maxValidMate or mate < args.minValidMate:
-                    issue["Invalid mate scores"][0] += 1
-                    if not found_invalid or args.showAllIssues:
-                        issue["Invalid mate scores"][1] += int(not found_invalid)
-                        found_invalid = True
-                        print(
-                            f'Found invalid mate #{mate} outside of [{args.minValidMate}, {args.maxValidMate}] for FEN "{fen}" with bm #{bestmate}.'
-                        )
+                    txt = f'Found invalid mate #{mate} outside of [{args.minValidMate}, {args.maxValidMate}] for FEN "{fen}" with bm #{bestmate}.'
+                    record_issue(multipv, "Invalid mate scores", txt)
                 if pv == "bound":
                     continue
                 if mate * bestmate > 0:
@@ -493,62 +516,34 @@ if __name__ == "__main__":
                             bestmates += 1
                             bestnodes[abs(mate)].append(nodes)
                             bestdepth[abs(mate)].append(depth)
-                    if abs(mate) < abs(bestmate):
-                        issue["Better mates"][0] += 1
-                        if not found_better or args.showAllIssues:
-                            issue["Better mates"][1] += int(not found_better)
-                            found_better = True
-                            print(
-                                f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.'
-                            )
-                            print("PV:", pv)
-                    if status != "ok":
-                        issue["Bad PVs"][0] += 1
-                        if not found_badpv or args.showAllIssues:
-                            issue["Bad PVs"][1] += int(not found_badpv)
-                            found_badpv = True
-                            print(
-                                f'Found mate #{mate} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.'
-                            )
-                            print("PV:", pv)
-                else:
-                    issue["Wrong mates"][0] += 1
-                    if not found_wrong or args.showAllIssues:
-                        issue["Wrong mates"][1] += int(not found_wrong)
-                        found_wrong = True
-                        print(
-                            f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
-                        )
-                        print("PV:", pv)
+                    if abs(mate) < abs(bestmate) and (multipv == 1 or mate > 0):
+                        txt = f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.\nPV: {pv}'
+                        record_issue(multipv, "Better mates", txt)
+                    if (multipv == 1 or args.checkMultiPVs) and status != "ok":
+                        txt = f'Found mate #{mate} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.\nPV: {pv}'
+                        record_issue(multipv, "Bad PVs", txt)
+                elif multipv == 1 or mate > 0:
+                    txt = f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.\nPV: {pv}'
+                    record_issue(multipv, "Wrong mates", txt)
             elif tb is not None:
                 if score * bestmate > 0:
                     if last_line:
                         tbwins += 1
-                    status = pv_status(
-                        fen, mate, score, pv.split(), tb, args.maxTBscore
+                    status = (
+                        pv_status(fen, mate, score, pv.split(), tb, args.maxTBscore)
+                        if multipv == 1 or args.checkMultiPVs
+                        else "None"
                     )
-                    if (
+                    if (multipv == 1 or args.checkMultiPVs) and (
                         (status != "ok" and not args.shortTBPVonly)
                         or status == "short"
                         or "TB entry" in status
                     ):
-                        issue["Bad PVs"][0] += 1
-                        if not found_badpv or args.showAllIssues:
-                            issue["Bad PVs"][1] += int(not found_badpv)
-                            found_badpv = True
-                            print(
-                                f'Found TB score {score} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.'
-                            )
-                            print("PV:", pv)
-                else:
-                    issue["Wrong TB score"][0] += 1
-                    if not found_wrong_tb or args.showAllIssues:
-                        issue["Wrong TB score"][1] += int(not found_wrong_tb)
-                        found_wrong_tb = True
-                        print(
-                            f'Found TB score {score} (wrong sign) for FEN "{fen}" with bm #{bestmate}.'
-                        )
-                        print("PV:", pv)
+                        txt = f'Found TB score {score} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.\nPV: {pv}'
+                        record_issue(multipv, "Bad PVs", txt)
+                elif multipv == 1 or score > 0:
+                    txt = f'Found TB score {score} (wrong sign) for FEN "{fen}" with bm #{bestmate}.\nPV: {pv}'
+                    record_issue(multipv, "Wrong TB score", txt)
 
     print(f"\nUsing {msg}")
     if name:
@@ -581,7 +576,7 @@ if __name__ == "__main__":
         for key, value in issue.items():
             if value[0]:
                 print(
-                    f"{key}:{' ' * (20 - len(key))}{value[0]}   (from {value[1]} FENs)"
+                    f"{key}:{' ' * (28 - len(key))}{value[0]}   (from {value[1]} FENs)"
                 )
 
     if args.bench:
