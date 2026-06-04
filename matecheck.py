@@ -488,6 +488,7 @@ if __name__ == "__main__":
     bestdepth = [[] for _ in range(maxbm + 1)]
     foundmates = {}
     for fen, bestmate, pvstatus, nodes, depth, _, _ in res:
+        found_mate = None
         found_issues = set()
 
         def record_issue(multipv, key, txt):
@@ -516,6 +517,7 @@ if __name__ == "__main__":
                             bestmates += 1
                             bestnodes[abs(mate)].append(nodes)
                             bestdepth[abs(mate)].append(depth)
+                        found_mate = mate
                     if abs(mate) < abs(bestmate) and (multipv == 1 or mate > 0):
                         txt = f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.\nPV: {pv}'
                         record_issue(multipv, "Better mates", txt)
@@ -544,6 +546,13 @@ if __name__ == "__main__":
                 elif multipv == 1 or score > 0:
                     txt = f'Found TB score {score} (wrong sign) for FEN "{fen}" with bm #{bestmate}.\nPV: {pv}'
                     record_issue(multipv, "Wrong TB score", txt)
+        if args.mate is not None:
+            if found_mate is None:
+                print(f'Did not find mate for FEN "{fen}" with bm #{bestmate}.')
+            elif found_mate != bestmate:
+                print(
+                    f'Only found mate #{found_mate} for FEN "{fen}" with bm #{bestmate}.'
+                )
 
     print(f"\nUsing {msg}")
     if name:
