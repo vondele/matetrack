@@ -3,7 +3,7 @@ from time import time
 from multiprocessing import freeze_support, cpu_count, active_children
 from tqdm import tqdm
 import json
-import os
+import os, signal
 
 
 class TB:
@@ -466,10 +466,15 @@ if __name__ == "__main__":
                         f"\nFATAL ERROR: Engine or worker crashed ({type(ex).__name__}: {ex}). Terminating immediately.",
                         file=sys.stderr,
                     )
+                    sys.stdout.flush()
+                    sys.stderr.flush()
                     e.shutdown(wait=False, cancel_futures=True)
-                    for child in active_children():
-                        child.kill()  # Forcefully kill the running worker processes
-                    os._exit(1)
+                    if sys.platform != "win32":
+                        os.killpg(os.getpgrp(), signal.SIGKILL)
+                    else:
+                        for child in active_children():
+                            child.kill()  # Forcefully kill the running worker processes
+                        os._exit(1)
 
     print("")
 
