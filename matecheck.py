@@ -1,8 +1,9 @@
 import argparse, random, re, sys, concurrent.futures, chess, chess.engine, chess.syzygy, logging
 from time import time
-from multiprocessing import freeze_support, cpu_count
+from multiprocessing import freeze_support, cpu_count, active_children
 from tqdm import tqdm
 import json
+import os
 
 
 class TB:
@@ -184,10 +185,13 @@ class Analyser:
                         pvstr = " ".join(pv)
                         if (multipv, m, score, pvstr) not in pvstatus:
                             pvstatus[multipv, m, score, pvstr] = (
-                                pv_status(fen, m, score, pv)
-                                if m and (multipv == 1 or self.checkMultiPVs)
-                                else "None"
-                            ), False
+                                (
+                                    pv_status(fen, m, score, pv)
+                                    if m and (multipv == 1 or self.checkMultiPVs)
+                                    else "None"
+                                ),
+                                False,
+                            )
                         if multipv == 1:
                             nodes = lastnodes
                             depth = info.get("depth", 0)
@@ -404,14 +408,14 @@ if __name__ == "__main__":
     random.shuffle(fens)  # try to balance the analysis time across chunks
 
     print(
-        f"Loaded {len(fens)} FENs, with |bm| (min avg max): {min(absbms)} {round(sum(absbms)/len(absbms))} {maxbm}."
+        f"Loaded {len(fens)} FENs, with |bm| (min avg max): {min(absbms)} {round(sum(absbms) / len(absbms))} {maxbm}."
     )
 
     numfen = len(fens)
     workers = args.concurrency // (args.threads if args.threads else 1)
-    assert (
-        workers > 0
-    ), f"Need concurrency >= threads, but concurrency = {args.concurrency} and threads = {args.threads}."
+    assert workers > 0, (
+        f"Need concurrency >= threads, but concurrency = {args.concurrency} and threads = {args.threads}."
+    )
     fw_ratio = numfen // (4 * workers)
     fenschunked = list(chunks(fens, max(1, fw_ratio)))
 
@@ -455,7 +459,17 @@ if __name__ == "__main__":
 
             for future in concurrent.futures.as_completed(futures):
                 pbar.update(1)
-                res += future.result()
+                try:
+                    res += future.result()
+                except Exception as ex:
+                    print(
+                        f"\nFATAL ERROR: Engine or worker crashed ({type(ex).__name__}: {ex}). Terminating immediately.",
+                        file=sys.stderr,
+                    )
+                    e.shutdown(wait=False, cancel_futures=True)
+                    for child in active_children():
+                        child.kill()  # Forcefully kill the running worker processes
+                    os._exit(1)
 
     print("")
 
@@ -570,12 +584,12 @@ if __name__ == "__main__":
                 nl, dl = bestnodes[bm], bestdepth[bm]
                 total = absbms.count(bm)
                 print(
-                    f"|bm| = {bm} - mates found: {len(nl)} = {(len(nl) * 1000 // total) / 10}% of {total}; nodes (min avg max): {min(nl)} {round(sum(nl)/len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl)/len(dl))} {max(dl)}"
+                    f"|bm| = {bm} - mates found: {len(nl)} = {(len(nl) * 1000 // total) / 10}% of {total}; nodes (min avg max): {min(nl)} {round(sum(nl) / len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl) / len(dl))} {max(dl)}"
                 )
         nl = [n for l in bestnodes for n in l]
         dl = [d for l in bestdepth for d in l]
         print(
-            f"All best mates found: {len(nl)} = {(len(nl) * 1000 // numfen) / 10}% of {numfen}; nodes (min avg max): {min(nl)} {round(sum(nl)/len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl)/len(dl))} {max(dl)}"
+            f"All best mates found: {len(nl)} = {(len(nl) * 1000 // numfen) / 10}% of {numfen}; nodes (min avg max): {min(nl)} {round(sum(nl) / len(nl))} {max(nl)}, depth (min avg max): {min(dl)} {round(sum(dl) / len(dl))} {max(dl)}"
         )
 
     if sum([v[0] for v in issue.values()]):
