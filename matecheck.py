@@ -129,6 +129,7 @@ class Analyser:
         self.multiPV = args.multiPV
         self.checkMultiPVs = args.checkMultiPVs
         self.syzygyPath = args.syzygyPath
+        self.evalFile = args.evalFile
         self.syzygy50MoveRule = args.syzygy50MoveRule
         self.minTBscore = args.minTBscore
         self.engineOpts = args.engineOpts
@@ -140,6 +141,8 @@ class Analyser:
             engine.configure({"Threads": self.threads})
         if self.hash is not None:
             engine.configure({"Hash": self.hash})
+        if self.evalFile is not None:
+            engine.configure({"EvalFile": self.evalFile})
         if self.syzygyPath is not None:
             engine.configure({"SyzygyPath": self.syzygyPath})
         if self.syzygy50MoveRule is not None:
@@ -259,6 +262,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--syzygyPath",
         help="path(s) to syzygy EGTBs, with ':'/';' as separator on Linux/Windows",
+    )
+    parser.add_argument(
+        "--evalFile",
+        help="path for the EvalFile to be used with the engine if the default net is not to be used",
     )
     parser.add_argument(
         "--syzygy50MoveRule",
@@ -435,6 +442,7 @@ if __name__ == "__main__":
         ("multiPV", args.multiPV),
         ("syzygyPath", args.syzygyPath),
         ("syzygy50MoveRule", args.syzygy50MoveRule),
+        ("evalFile", args.evalFile),
     ]
     msg = (
         args.engine
