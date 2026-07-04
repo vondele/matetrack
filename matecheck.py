@@ -151,7 +151,7 @@ class Analyser:
             pvstatus = {}  #  stores (status, final_line)
             m, score, pvstr = None, None, ""
             nodes = depth = lastnodes = lasttime = 0
-            if self.mate is not None and self.mate == 0:
+            if self.mate is not None and self.mate == 0 and bm:
                 limit = chess.engine.Limit(
                     nodes=self.nodes, depth=self.depth, time=self.time, mate=abs(bm)
                 )
@@ -369,8 +369,9 @@ if __name__ == "__main__":
         logging.basicConfig(filename=args.logFile, level=logging.DEBUG)
 
     ana = Analyser(args)
-    p = re.compile(r"([0-9a-zA-Z/\- ]*) bm #([0-9\-]*);")
-
+    p = re.compile(
+        r"^([1-8a-zA-Z/]+ [wb] [a-zA-Z\-]+ [a-h1-8\-]+(?: \d+ \d+)?)( bm #(-?\d+);)?"
+    )
     unlimited = (
         args.mate and args.nodes is None and args.depth is None and args.time is None
     )
@@ -379,43 +380,49 @@ if __name__ == "__main__":
     for epd in args.epdFile:
         with open(epd) as f:
             for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):  # ignore empty lines and comments
+                    continue
                 m = p.match(line)
                 if not m:
                     print("---------------------> IGNORING : ", line)
+                    continue
+                fen = m.group(1)
+                bm = int(m.group(3)) if m.group(2) is not None else None
+                if unlimited and (bm is None or args.mate < abs(bm)):
+                    continue  # avoid analyses that cannot terminate
+                if (
+                    args.bmMin is not None and (bm is None or abs(bm) < args.bmMin)
+                ) or (args.bmMax is not None and (bm is None or abs(bm) > args.bmMax)):
+                    continue
+                if fen in bmfens:
+                    bmold = bmfens[fen]
+                    if bm != bmold:
+                        print(
+                            f'Warning: For duplicate FEN "{fen}" we only keep faster mate between #{bm} and #{bmold}.'
+                        )
+                        if bm and (bmold is None or abs(bm) < abs(bmold)):
+                            bmfens[fen] = bm
                 else:
-                    fen, bm = m.group(1), int(m.group(2))
-                    if unlimited and args.mate < abs(bm):
-                        continue  # avoid analyses that cannot terminate
-                    if (args.bmMin is not None and abs(bm) < args.bmMin) or (
-                        args.bmMax is not None and abs(bm) > args.bmMax
-                    ):
-                        continue
-                    if fen in bmfens:
-                        bmold = bmfens[fen]
-                        if bm != bmold:
-                            print(
-                                f'Warning: For duplicate FEN "{fen}" we only keep faster mate between #{bm} and #{bmold}.'
-                            )
-                            if abs(bm) < abs(bmold):
-                                bmfens[fen] = bm
-                    else:
-                        bmfens[fen] = bm
+                    bmfens[fen] = bm
 
-    absbms = [abs(bm) for bm in bmfens.values()] if bmfens else [0]
+    absbms = [abs(bm) for bm in bmfens.values() if bm is not None]
+    numbm = len(absbms)
+    absbms = absbms if absbms else [0]
     maxbm = max(absbms)
     fens = list(bmfens.items())
     random.seed(42)
     random.shuffle(fens)  # try to balance the analysis time across chunks
 
     print(
-        f"Loaded {len(fens)} FENs, with |bm| (min avg max): {min(absbms)} {round(sum(absbms) / len(absbms))} {maxbm}."
+        f"Loaded {len(fens)} FENs with {numbm} bm values, with |bm| (min avg max): {min(absbms)} {round(sum(absbms) / len(absbms))} {maxbm}."
     )
 
     numfen = len(fens)
     workers = args.concurrency // (args.threads if args.threads else 1)
-    assert workers > 0, (
-        f"Need concurrency >= threads, but concurrency = {args.concurrency} and threads = {args.threads}."
-    )
+    assert (
+        workers > 0
+    ), f"Need concurrency >= threads, but concurrency = {args.concurrency} and threads = {args.threads}."
     fw_ratio = numfen // (4 * workers)
     fenschunked = list(chunks(fens, max(1, fw_ratio)))
 
@@ -498,8 +505,10 @@ if __name__ == "__main__":
         "Invalid mate scores",
         "Better mates",
         "Wrong mates",
+        "Unexpected mates",
         "Bad PVs",
-        "Wrong TB score",
+        "Wrong TB scores",
+        "Unexpected TB scores",
     ]:
         for prefix in ["", "MultiPV "]:
             issue[prefix + txt] = [0, 0]
@@ -510,7 +519,7 @@ if __name__ == "__main__":
         found_mate = None
         found_issues = set()
 
-        def record_issue(multipv, key, txt):
+        def record_issue(multipv, key, txt, fen, bm, pv=None):
             if multipv != 1:
                 key = "MultiPV " + key
                 txt = f"multipv{multipv}: " + txt
@@ -519,52 +528,65 @@ if __name__ == "__main__":
             if first_time or args.showAllIssues:
                 issue[key][1] += int(first_time)
                 found_issues.add(key)
+                txt += (
+                    f' for FEN "{fen}" '
+                    + (f" with bm #{bm}." if bm else " without bm.")
+                    + (f"\nPV: {pv}" if pv else "")
+                )
                 print(txt)
 
         for (multipv, mate, score, pv), (status, last_line) in pvstatus.items():
             if mate:
                 if mate > args.maxValidMate or mate < args.minValidMate:
-                    txt = f'Found invalid mate #{mate} outside of [{args.minValidMate}, {args.maxValidMate}] for FEN "{fen}" with bm #{bestmate}.'
-                    record_issue(multipv, "Invalid mate scores", txt)
+                    txt = f"Found invalid mate #{mate} outside of [{args.minValidMate}, {args.maxValidMate}]"
+                    record_issue(multipv, "Invalid mate scores", txt, fen, bestmate)
                 if pv == "bound":
                     continue
-                if mate * bestmate > 0:
-                    if last_line:  #  for mate counts use last valid UCI info output
-                        mates += 1
-                        foundmates[fen] = mate
-                        if mate == bestmate:
-                            bestmates += 1
-                            bestnodes[abs(mate)].append(nodes)
-                            bestdepth[abs(mate)].append(depth)
-                        found_mate = mate
-                    if abs(mate) < abs(bestmate) and (multipv == 1 or mate > 0):
-                        txt = f'Found mate #{mate} (better) for FEN "{fen}" with bm #{bestmate}.\nPV: {pv}'
-                        record_issue(multipv, "Better mates", txt)
-                    if (multipv == 1 or args.checkMultiPVs) and status != "ok":
-                        txt = f'Found mate #{mate} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.\nPV: {pv}'
-                        record_issue(multipv, "Bad PVs", txt)
-                elif multipv == 1 or mate > 0:
-                    txt = f'Found mate #{mate} (wrong sign) for FEN "{fen}" with bm #{bestmate}.\nPV: {pv}'
-                    record_issue(multipv, "Wrong mates", txt)
+                if bestmate:
+                    if mate * bestmate > 0:
+                        if last_line:  #  for mate counts use last valid UCI info output
+                            mates += 1
+                            foundmates[fen] = mate
+                            if mate == bestmate:
+                                bestmates += 1
+                                bestnodes[abs(mate)].append(nodes)
+                                bestdepth[abs(mate)].append(depth)
+                            found_mate = mate
+                        if abs(mate) < abs(bestmate) and (multipv == 1 or mate > 0):
+                            txt = f"Found mate #{mate} (better)"
+                            record_issue(multipv, "Better mates", txt, fen, bestmate)
+                        if (multipv == 1 or args.checkMultiPVs) and status != "ok":
+                            txt = f'Found mate #{mate} with PV status "{status}"'
+                            record_issue(multipv, "Bad PVs", txt, fen, bestmate, pv)
+                    elif multipv == 1 or mate > 0:
+                        txt = f"Found mate #{mate} (wrong sign)"
+                        record_issue(multipv, "Wrong mates", txt, fen, bestmate)
+                elif mate:
+                    txt = f"Found mate #{mate} (unexpected)"
+                    record_issue(multipv, "Unexpected mates", txt, fen, bestmate)
             elif tb is not None:
-                if score * bestmate > 0:
-                    if last_line:
-                        tbwins += 1
-                    status = (
-                        pv_status(fen, mate, score, pv.split(), tb, args.maxTBscore)
-                        if multipv == 1 or args.checkMultiPVs
-                        else "None"
-                    )
-                    if (multipv == 1 or args.checkMultiPVs) and (
-                        (status != "ok" and not args.shortTBPVonly)
-                        or status == "short"
-                        or "TB entry" in status
-                    ):
-                        txt = f'Found TB score {score} with PV status "{status}" for FEN "{fen}" with bm #{bestmate}.\nPV: {pv}'
-                        record_issue(multipv, "Bad PVs", txt)
-                elif multipv == 1 or score > 0:
-                    txt = f'Found TB score {score} (wrong sign) for FEN "{fen}" with bm #{bestmate}.\nPV: {pv}'
-                    record_issue(multipv, "Wrong TB score", txt)
+                if bestmate:
+                    if score * bestmate > 0:
+                        if last_line:
+                            tbwins += 1
+                        status = (
+                            pv_status(fen, mate, score, pv.split(), tb, args.maxTBscore)
+                            if multipv == 1 or args.checkMultiPVs
+                            else "None"
+                        )
+                        if (multipv == 1 or args.checkMultiPVs) and (
+                            (status != "ok" and not args.shortTBPVonly)
+                            or status == "short"
+                            or "TB entry" in status
+                        ):
+                            txt = f'Found TB score {score} with PV status "{status}"'
+                            record_issue(multipv, "Bad PVs", txt, fen, bestmate, pv)
+                    elif multipv == 1 or score > 0:
+                        txt = f"Found TB score {score} (wrong sign)"
+                        record_issue(multipv, "Wrong TB scores", txt, fen, bestmate)
+                elif score:
+                    txt = f"Found TB score {score} (unexpected)"
+                    record_issue(multipv, "Unexpected TB scores", txt, fen, bestmate)
         if args.mate is not None:
             if found_mate is None:
                 print(f'Did not find mate for FEN "{fen}" with bm #{bestmate}.')
@@ -577,6 +599,8 @@ if __name__ == "__main__":
     if name:
         print("Engine ID:    ", name)
     print("Total FENs:   ", numfen)
+    if numfen != numbm:
+        print("FENs w/ bm:   ", numbm)
     print("Found mates:  ", mates)
     print("Best mates:   ", bestmates)
     if tbwins:
@@ -584,7 +608,7 @@ if __name__ == "__main__":
 
     if (args.showAllStats or args.mate is not None) and bestmates:
         print("\nBest mate statistics:")
-        for bm in range(maxbm + 1):
+        for bm in range(1, maxbm + 1):
             if bestnodes[bm]:
                 nl, dl = bestnodes[bm], bestdepth[bm]
                 total = absbms.count(bm)
