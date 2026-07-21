@@ -35,7 +35,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    p = re.compile("([0-9a-zA-Z/\- ]*) bm #([0-9\-]*);")
+    p = re.compile(r"([0-9a-zA-Z/\- ]*) bm #([0-9\-]*);")
     fens = []
 
     with open(args.epdFile) as f:
@@ -77,7 +77,10 @@ if __name__ == "__main__":
                     bm = -bm + (1 if bm > 0 else 0)
                 fen = board.epd()
                 pv = pv[plies:]
-                f.write(f"{fen} bm #{bm}; PV: {' '.join(pv)};\n")
+                txt = f"{fen} bm #{bm};"
+                if pv:
+                    txt += f" PV: {' '.join(pv)};"
+                f.write(f"{txt}\n")
                 count += 1
             else:
                 f.write(line)
