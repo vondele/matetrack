@@ -43,7 +43,7 @@ def chunks(lst, n):
 
 
 def pv_status(fen, mate, score, pv, tb=None, maxTBscore=0):
-    # check if the given pv (list of uci moves) leads to checkmate #mate
+    # check if the given pv (tuple of uci moves) leads to checkmate #mate
     # if mate is None, check if pv leads to claimed TB win/loss
     losing_side = 1 if (mate and mate > 0) or (score and score > 0) else 0
     plies_to_tb, entered_tb = 0, False
@@ -90,7 +90,7 @@ def pv_status(fen, mate, score, pv, tb=None, maxTBscore=0):
 
     # now check if the leaf node is in EGTB, with the correct result
     wdl = tb.probe(board, entered_tb)
-    if wdl is None:
+    if wdl is None or len(pv) == 0:
         return "short"
     if maxTBscore and plies_to_tb != maxTBscore - abs(score):
         return "wrong TB entry"
@@ -127,7 +127,6 @@ class Analyser:
         self.hash = args.hash
         self.threads = args.threads
         self.multiPV = args.multiPV
-        self.checkMultiPVs = args.checkMultiPVs
         self.syzygyPath = args.syzygyPath
         self.evalFile = args.evalFile
         self.syzygy50MoveRule = args.syzygy50MoveRule
@@ -152,7 +151,7 @@ class Analyser:
         for fen, bm in fens:
             board = chess.Board(fen)
             pvstatus = {}  #  stores (status, final_line)
-            m, score, pvstr = None, None, ""
+            m, score, pv = None, None, ()
             nodes = depth = lastnodes = lasttime = 0
             if self.mate is not None and self.mate == 0 and bm:
                 limit = chess.engine.Limit(
@@ -184,22 +183,17 @@ class Analyser:
                             or abs(score) < self.minTBscore
                         ):
                             continue
-                        pv = [m.uci() for m in info["pv"]] if "pv" in info else []
-                        pvstr = " ".join(pv)
-                        if (multipv, m, score, pvstr) not in pvstatus:
-                            pvstatus[multipv, m, score, pvstr] = (
-                                (
-                                    pv_status(fen, m, score, pv)
-                                    if m and (multipv == 1 or self.checkMultiPVs)
-                                    else "None"
-                                ),
+                        pv = tuple(m.uci() for m in info["pv"]) if "pv" in info else ()
+                        if (multipv, m, score, pv) not in pvstatus:
+                            pvstatus[multipv, m, score, pv] = (
+                                pv_status(fen, m, score, pv) if m else "None",
                                 False,
                             )
                         if multipv == 1:
                             nodes = lastnodes
                             depth = info.get("depth", 0)
-                            lastkey = 1, m, score, pvstr
-            if lastkey in pvstatus:  # mark final info line
+                            lastkey = 1, m, score, pv
+            if lastkey in pvstatus:  # mark final info line for best move
                 pvstatus[lastkey] = pvstatus[lastkey][0], True
             result_fens.append((fen, bm, pvstatus, nodes, depth, lastnodes, lasttime))
 
@@ -208,11 +202,53 @@ class Analyser:
         return result_fens
 
 
+def load_bmfens(filenames, unlimited=False, mateLimit=None, bmMin=None, bmMax=None):
+    p = re.compile(
+        r"^([1-8a-zA-Z/]+ [wb] [a-zA-Z\-]+ [a-h1-8\-]+(?: \d+ \d+)?)( bm #(-?\d+);)?"
+    )
+    bmfens = {}
+    for epd in filenames:
+        with open(epd) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):  # ignore empty lines and comments
+                    continue
+                m = p.match(line)
+                if not m:
+                    print("---------------------> IGNORING : ", line)
+                    continue
+                fen = m.group(1)
+                bm = int(m.group(3)) if m.group(2) is not None else None
+                if unlimited and (bm is None or mateLimit < abs(bm)):
+                    continue  # avoid analyses that cannot terminate
+                if (bmMin is not None and (bm is None or abs(bm) < bmMin)) or (
+                    bmMax is not None and (bm is None or abs(bm) > bmMax)
+                ):
+                    continue
+                if fen in bmfens:
+                    bmold = bmfens[fen]
+                    if bm != bmold:
+                        print(
+                            f'Warning: For duplicate FEN "{fen}" we only keep faster mate between #{bm} and #{bmold}.'
+                        )
+                        if bm and (bmold is None or abs(bm) < abs(bmold)):
+                            bmfens[fen] = bm
+                else:
+                    bmfens[fen] = bm
+    return bmfens
+
+
 if __name__ == "__main__":
     freeze_support()
     parser = argparse.ArgumentParser(
         description='Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--epdFile",
+        nargs="+",
+        default=["matetrack.epd"],
+        help="file(s) containing the positions and their mate scores",
     )
     parser.add_argument(
         "--engine",
@@ -241,7 +277,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mate",
         type=int,
-        help="mate limit per position: a value of 0 will use bm #X as the limit, a positive value (in the absence of other limits) means only elegible positions will be analysed",
+        help="mate limit per position: a value of 0 will use bm #X as the limit, a positive value (in the absence of other limits) means only eligible positions will be analysed",
     )
     parser.add_argument("--hash", type=int, help="hash table size in MB")
     parser.add_argument(
@@ -255,9 +291,9 @@ if __name__ == "__main__":
         help="maximal number of lines to search per position, decisive scores in secondary lines are checked for validity",
     )
     parser.add_argument(
-        "--checkMultiPVs",
-        action="store_true",
-        help="also check PVs of secondary decisive scores for correctness and completeness",
+        "--multipvFile",
+        nargs="+",
+        help="file(s) containing (some of) the positions' children and their possible mate scores",
     )
     parser.add_argument(
         "--syzygyPath",
@@ -305,12 +341,6 @@ if __name__ == "__main__":
         "--engineOpts",
         type=json.loads,
         help="json encoded dictionary of generic options, e.g. tuning parameters, to be used to initialize the engine",
-    )
-    parser.add_argument(
-        "--epdFile",
-        nargs="+",
-        default=["matetrack.epd"],
-        help="file(s) containing the positions and their mate scores",
     )
     parser.add_argument(
         "--bmMin",
@@ -376,42 +406,11 @@ if __name__ == "__main__":
         logging.basicConfig(filename=args.logFile, level=logging.DEBUG)
 
     ana = Analyser(args)
-    p = re.compile(
-        r"^([1-8a-zA-Z/]+ [wb] [a-zA-Z\-]+ [a-h1-8\-]+(?: \d+ \d+)?)( bm #(-?\d+);)?"
-    )
     unlimited = (
         args.mate and args.nodes is None and args.depth is None and args.time is None
     )
 
-    bmfens = {}
-    for epd in args.epdFile:
-        with open(epd) as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#"):  # ignore empty lines and comments
-                    continue
-                m = p.match(line)
-                if not m:
-                    print("---------------------> IGNORING : ", line)
-                    continue
-                fen = m.group(1)
-                bm = int(m.group(3)) if m.group(2) is not None else None
-                if unlimited and (bm is None or args.mate < abs(bm)):
-                    continue  # avoid analyses that cannot terminate
-                if (
-                    args.bmMin is not None and (bm is None or abs(bm) < args.bmMin)
-                ) or (args.bmMax is not None and (bm is None or abs(bm) > args.bmMax)):
-                    continue
-                if fen in bmfens:
-                    bmold = bmfens[fen]
-                    if bm != bmold:
-                        print(
-                            f'Warning: For duplicate FEN "{fen}" we only keep faster mate between #{bm} and #{bmold}.'
-                        )
-                        if bm and (bmold is None or abs(bm) < abs(bmold)):
-                            bmfens[fen] = bm
-                else:
-                    bmfens[fen] = bm
+    bmfens = load_bmfens(args.epdFile, unlimited, args.mate, args.bmMin, args.bmMax)
 
     absbms = [abs(bm) for bm in bmfens.values() if bm is not None]
     numbm = len(absbms)
@@ -425,6 +424,16 @@ if __name__ == "__main__":
         f"Loaded {len(fens)} FENs with {numbm} bm values, with |bm| (min avg max): {min(absbms)} {round(sum(absbms) / len(absbms))} {maxbm}."
     )
 
+    multipv_fens = None
+    if args.multiPV and args.multiPV > 1 and args.multipvFile:
+        multipv_fens = load_bmfens(args.multipvFile)
+
+    if multipv_fens:
+        c = len([1 for bm in multipv_fens.values() if bm is not None])
+        print(
+            f"Loaded {len(multipv_fens)} possible children FENs with {c} bm values for MultiPV checks."
+        )
+
     numfen = len(fens)
     workers = args.concurrency // (args.threads if args.threads else 1)
     assert (
@@ -436,7 +445,7 @@ if __name__ == "__main__":
     if args.engineOpts is not None:
         print("Additional generic engine options: ", args.engineOpts)
 
-    limits = [
+    options = [
         ("bmMin", args.bmMin),
         ("bmMax", args.bmMax),
         ("nodes", args.nodes),
@@ -456,7 +465,7 @@ if __name__ == "__main__":
         + " on "
         + " ".join(args.epdFile)
         + " with "
-        + " ".join([f"--{k} {v}" for k, v in limits if v is not None])
+        + " ".join([f"--{k} {v}" for k, v in options if v is not None])
     )
 
     print(f"\nMatetrack started for {msg} ...", flush=True)
@@ -498,12 +507,7 @@ if __name__ == "__main__":
         tb = TB(args.syzygyPath, args.syzygy50MoveRule)
         c = 0
         for _, _, pvstatus, _, _, _, _ in res:
-            c += sum(
-                1
-                for (multipv, _, score, _) in pvstatus
-                if multipv == 1 or args.checkMultiPVs
-                if score is not None
-            )
+            c += sum(1 for (multipv, _, score, _) in pvstatus if score is not None)
         if c:
             print(f"Checking up to {c} TB win PVs. This may take some time ...")
 
@@ -539,17 +543,17 @@ if __name__ == "__main__":
                 txt += (
                     f' for FEN "{fen}" '
                     + (f" with bm #{bm}." if bm else " without bm.")
-                    + (f"\nPV: {pv}" if pv else "")
+                    + (f"\nPV: {' '.join(pv)}" if pv else "")
                 )
                 print(txt)
 
         for (multipv, mate, score, pv), (status, last_line) in pvstatus.items():
+            if mate and (mate > args.maxValidMate or mate < args.minValidMate):
+                txt = f"Found invalid mate #{mate} outside of [{args.minValidMate}, {args.maxValidMate}]"
+                record_issue(multipv, "Invalid mate scores", txt, fen, bestmate)
+            if pv == "bound":
+                continue
             if mate:
-                if mate > args.maxValidMate or mate < args.minValidMate:
-                    txt = f"Found invalid mate #{mate} outside of [{args.minValidMate}, {args.maxValidMate}]"
-                    record_issue(multipv, "Invalid mate scores", txt, fen, bestmate)
-                if pv == "bound":
-                    continue
                 if bestmate:
                     if mate * bestmate > 0:
                         if last_line:  #  for mate counts use last valid UCI info output
@@ -563,7 +567,7 @@ if __name__ == "__main__":
                         if abs(mate) < abs(bestmate) and (multipv == 1 or mate > 0):
                             txt = f"Found mate #{mate} (better)"
                             record_issue(multipv, "Better mates", txt, fen, bestmate)
-                        if (multipv == 1 or args.checkMultiPVs) and status != "ok":
+                        if status != "ok":
                             txt = f'Found mate #{mate} with PV status "{status}"'
                             record_issue(multipv, "Bad PVs", txt, fen, bestmate, pv)
                     elif multipv == 1 or mate > 0:
@@ -577,12 +581,8 @@ if __name__ == "__main__":
                     if score * bestmate > 0:
                         if last_line:
                             tbwins += 1
-                        status = (
-                            pv_status(fen, mate, score, pv.split(), tb, args.maxTBscore)
-                            if multipv == 1 or args.checkMultiPVs
-                            else "None"
-                        )
-                        if (multipv == 1 or args.checkMultiPVs) and (
+                        status = pv_status(fen, mate, score, pv, tb, args.maxTBscore)
+                        if (
                             (status != "ok" and not args.shortTBPVonly)
                             or status == "short"
                             or "TB entry" in status
@@ -592,7 +592,7 @@ if __name__ == "__main__":
                     elif multipv == 1 or score > 0:
                         txt = f"Found TB score {score} (wrong sign)"
                         record_issue(multipv, "Wrong TB scores", txt, fen, bestmate)
-                elif score:
+                else:
                     txt = f"Found TB score {score} (unexpected)"
                     record_issue(multipv, "Unexpected TB scores", txt, fen, bestmate)
         if args.mate is not None:
@@ -602,6 +602,60 @@ if __name__ == "__main__":
                 print(
                     f'Only found mate #{found_mate} for FEN "{fen}" with bm #{bestmate}.'
                 )
+
+        if not multipv_fens:
+            continue
+
+        # check mate and TB scores in MultiPV lines for correctness
+        for (multipv, mate, score, pv), (status, last_line) in pvstatus.items():
+            if not (mate or tb) or not pv or pv == "bound":
+                continue
+            board = chess.Board(fen)
+            move = pv[0]
+            uci = chess.Move.from_uci(move)
+            if uci not in board.legal_moves:
+                txt = f"Found illegal root move {move}"
+                record_issue(multipv, "Bad PVs", txt, fen, bestmate, pv)
+                continue
+            board.push(uci)
+            child = board.epd()
+            if child not in multipv_fens:
+                continue
+            childbm = multipv_fens[child]
+            if childbm:  # adjust to root PoV
+                childbm = -childbm + (1 if childbm < 0 else 0)
+            if mate:
+                if childbm:
+                    if mate * childbm > 0:
+                        if abs(mate) < abs(childbm):
+                            txt = f"Found mate #{mate} (better than #{childbm}) for move {move}"
+                            record_issue(multipv, "Better mates", txt, fen, bestmate)
+                        if status != "ok":
+                            txt = f'Found mate #{mate} for move {move} with PV status "{status}"'
+                            record_issue(multipv, "Bad PVs", txt, fen, bestmate, pv)
+                    else:
+                        txt = f"Found mate #{mate} (wrong sign wrt #{childbm}) for move {move}"
+                        record_issue(multipv, "Wrong mates", txt, fen, bestmate)
+                else:
+                    txt = f"Found mate #{mate} (unexpected) for move {move}"
+                    record_issue(multipv, "Unexpected mates", txt, fen, bestmate)
+            elif tb is not None:
+                if childbm:
+                    if score * childbm > 0:
+                        status = pv_status(fen, mate, score, pv, tb, args.maxTBscore)
+                        if (
+                            (status != "ok" and not args.shortTBPVonly)
+                            or status == "short"
+                            or "TB entry" in status
+                        ):
+                            txt = f'Found TB score {score} (for #{childbm}) with PV status "{status}" for move {move}'
+                            record_issue(multipv, "Bad PVs", txt, fen, bestmate, pv)
+                    else:
+                        txt = f"Found TB score {score} (wrong sign wrt #{childbm}) for move {move}"
+                        record_issue(multipv, "Wrong TB scores", txt, fen, bestmate)
+                else:
+                    txt = f"Found TB score {score} (unexpected) for move {move}"
+                    record_issue(multipv, "Unexpected TB scores", txt, fen, bestmate)
 
     print(f"\nUsing {msg}")
     if name:

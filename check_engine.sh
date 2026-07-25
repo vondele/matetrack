@@ -31,7 +31,6 @@ MAXTBSCORE=$DEFAULT_MAXTBSCORE
 MINTBSCORE=$DEFAULT_MINTBSCORE
 MAXVALIDMATE=$DEFAULT_MAXVALIDMATE
 MINVALIDMATE=$DEFAULT_MINVALIDMATE
-CHECKMULTIPVS=""
 
 FAILS=0
 
@@ -84,9 +83,6 @@ while [[ "$#" -gt 0 ]]; do
     MINVALIDMATE="$2"
     shift
     ;;
-  --checkMultiPVs)
-    CHECKMULTIPVS="true"
-    ;;
   -h | --help)
     echo "Usage: $0 [OPTIONS]"
     echo "Options:"
@@ -97,7 +93,6 @@ while [[ "$#" -gt 0 ]]; do
     echo "  --time <value>            Number of seconds per position for gameplay tests (default: $DEFAULT_TIME)"
     echo "  --timeinc <value>         Time increment (in seconds) for gameplay tests (default: $DEFAULT_TIMEINC)"
     echo "  -c, --concurrency <value> Total number of threads script may use (default: $DEFAULT_CONCURRENCY)"
-    echo "  --checkMultiPVs           Parameter passed to matecheck.py"
     echo "  --shortTBPVonly           Parameter passed to matecheck.py"
     echo "  --maxTBscore <value>      Parameter passed to matecheck.py (default: $DEFAULT_MAXTBSCORE)"
     echo "  --minTBscore <value>      Parameter passed to matecheck.py (default: $DEFAULT_MINTBSCORE)"
@@ -135,9 +130,6 @@ if [ -n "$SYZYGY_PATH" ]; then
   if [ -n "$SHORTTBPVONLY" ]; then
     FLAG_ARGS=("--shortTBPVonly")
   fi
-fi
-if [ -n "$CHECKMULTIPVS" ]; then
-  FLAG_ARGS+=("--checkMultiPVs")
 fi
 
 echo "Checking $ENGINE for correct $SCORES scores and complete PVs..."
@@ -207,7 +199,7 @@ run_suite() {
     if ! echo "$UCI" | grep -q "MultiPV"; then
       echo -e "\n${RED}WARNING: Engine does not support UCI option MultiPV. Skipping th$th multiPV$egtb.$NOCOL"
     else
-      run_test "th$th multiPV$egtb" "matecheck${th}mpv$suffix" "${SYZYGY_ARGS[@]}" "${FLAG_ARGS[@]}" --engine "$ENGINE" --epdFile mates2000.epd --nodes "$NODES" --multiPV 4 --threads "$th"
+      run_test "th$th multiPV$egtb" "matecheck${th}mpv$suffix" "${SYZYGY_ARGS[@]}" "${FLAG_ARGS[@]}" --engine "$ENGINE" --epdFile mates2000.epd --nodes "$NODES" --multiPV 4 --multipvFile matetrack_multipv.epd matedtrack_multipv.epd --threads "$th"
     fi
   done
 }

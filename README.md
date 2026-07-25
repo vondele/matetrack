@@ -36,28 +36,26 @@ with the raw data in [`classic1000000.csv`](classic1000000.csv).
 ### Usage of `matecheck.py`
 
 ```
-usage: matecheck.py [-h] [--engine ENGINE] [--timeout TIMEOUT] [--nodes NODES] [--depth DEPTH] [--time TIME] [--timeinc TIMEINC] [--mate MATE] [--hash HASH] [--threads THREADS]
-                    [--multiPV MULTIPV] [--checkMultiPVs] [--syzygyPath SYZYGYPATH] [--evalFile EVALFILE] [--syzygy50MoveRule SYZYGY50MOVERULE] [--maxTBscore MAXTBSCORE]
-                    [--minTBscore MINTBSCORE] [--maxValidMate MAXVALIDMATE] [--minValidMate MINVALIDMATE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS]
-                    [--epdFile EPDFILE [EPDFILE ...]] [--bmMin BMMIN] [--bmMax BMMAX] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench] [--logFile LOGFILE]
-                    [--foundMatesFile FOUNDMATESFILE]
+usage: matecheck.py [-h] [--epdFile EPDFILE [EPDFILE ...]] [--engine ENGINE] [--timeout TIMEOUT] [--nodes NODES] [--depth DEPTH] [--time TIME] [--timeinc TIMEINC] [--mate MATE] [--hash HASH] [--threads THREADS] [--multiPV MULTIPV] [--multipvFile MULTIPVFILE [MULTIPVFILE ...]] [--syzygyPath SYZYGYPATH] [--evalFile EVALFILE] [--syzygy50MoveRule SYZYGY50MOVERULE] [--maxTBscore MAXTBSCORE] [--minTBscore MINTBSCORE] [--maxValidMate MAXVALIDMATE] [--minValidMate MINVALIDMATE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--bmMin BMMIN] [--bmMax BMMAX] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench] [--logFile LOGFILE] [--foundMatesFile FOUNDMATESFILE]
 
 Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".
 
 options:
   -h, --help            show this help message and exit
+  --epdFile EPDFILE [EPDFILE ...]
+                        file(s) containing the positions and their mate scores (default: ['matetrack.epd'])
   --engine ENGINE       name of the engine binary (default: ./stockfish)
   --timeout TIMEOUT     parameter passed to chess.engine.SimpleEngine (default: None)
   --nodes NODES         nodes limit per position, default: 10**6 without other limits, otherwise None (default: None)
   --depth DEPTH         depth limit per position (default: None)
   --time TIME           time limit (in seconds) per position (default: None)
   --timeinc TIMEINC     time increment (in seconds), with TIME passed as time remaining (default: None)
-  --mate MATE           mate limit per position: a value of 0 will use bm #X as the limit, a positive value (in the absence of other limits) means only elegible positions will be analysed
-                        (default: None)
+  --mate MATE           mate limit per position: a value of 0 will use bm #X as the limit, a positive value (in the absence of other limits) means only eligible positions will be analysed (default: None)
   --hash HASH           hash table size in MB (default: None)
   --threads THREADS     number of threads per position (values > 1 may lead to non-deterministic results) (default: None)
   --multiPV MULTIPV     maximal number of lines to search per position, decisive scores in secondary lines are checked for validity (default: None)
-  --checkMultiPVs       also check PVs of secondary decisive scores for correctness and completeness (default: False)
+  --multipvFile MULTIPVFILE [MULTIPVFILE ...]
+                        file(s) containing (some of) the positions' children and their possible mate scores (default: None)
   --syzygyPath SYZYGYPATH
                         path(s) to syzygy EGTBs, with ':'/';' as separator on Linux/Windows (default: None)
   --evalFile EVALFILE   path for the EvalFile to be used with the engine if the default net is not to be used (default: None)
@@ -75,8 +73,6 @@ options:
                         total number of threads script may use, default: cpu_count() (default: 32)
   --engineOpts ENGINEOPTS
                         json encoded dictionary of generic options, e.g. tuning parameters, to be used to initialize the engine (default: None)
-  --epdFile EPDFILE [EPDFILE ...]
-                        file(s) containing the positions and their mate scores (default: ['matetrack.epd'])
   --bmMin BMMIN         lower limit for |bm| for positions to analyse (default: None)
   --bmMax BMMAX         upper limit for |bm| for positions to analyse (default: None)
   --showAllIssues       show all unique UCI info lines with an issue, by default show for each FEN only the first occurrence of each possible type of issue (default: False)
@@ -111,6 +107,8 @@ contains illegal moves or does not end in checkmate.
 * **`matetrack.epd`**: The successor to `ChestUCI_23102018.epd`, with all illegal positions removed and all known errors corrected. The plots shown above are based on this file. It contains 6554 mate problems, ranging from mate in 1 (#1) to #126 for positions with between 4 and 32 pieces. In 26 positions the side to move is going to get mated.
 * `matetrackpv.epd`: The same as `matetrack.epd`, but for each position the file also includes a PV leading to the checkmate, if such a PV is known.
 * `matedtrack.epd`: Derived from `matetrackpv.epd` by applying a best move in all those positions, where the winning side is to move, and where a best move is known. The order of the positions in `matedtrack.epd` corresponds 1:1 to the order in `matetrack.epd`. So the new test suite still contains 6554 mate problems, but for 6549 of them the side to move is going to get mated. Observe that due to duplications, only 6531 of the latter positions are unique.
+* `matetrack_multipv.epd`: Fastest known mate values and associated PVs for the children of `matetrack.epd`, useful for running `matecheck.py` with `--multipvFile`.
+* `matedtrack_multipv.epd`: The same for `matedtrack.epd`.
 * `mates2000.epd`: A smaller test suite with 2000 positions ranging from #1 to #27. It contains a random selection of positions from `matetrack.epd` and `matedtrack.epd` that Stockfish can solve with 1M nodes. In 1105 positions the side to move is going to get mated.
 * `cursed.epd`: A collection of 125 cursed wins and 189 cursed losses, where wins and losses are denoted by `bm #1` and `bm #-1', respectively.
 * `KRvK1000.epd`: A collection of 1000 KRvK endgames, ranging from #4 to #16. In 529 positions the side to move is going to get mated.
