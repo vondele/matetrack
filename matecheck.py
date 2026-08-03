@@ -478,24 +478,24 @@ if __name__ == "__main__":
 
     with tqdm(total=len(fenschunked), smoothing=0, miniters=1) as pbar:
         with Pool(processes=workers) as e:
-            for future in e.imap_unordered(ana.analyze_fens, fenschunked):
-                pbar.update(1)
-                try:
+            try:
+                for future in e.imap_unordered(ana.analyze_fens, fenschunked):
+                    pbar.update(1)
                     res += future
-                except Exception as ex:
-                    print(
-                        f"\nFATAL ERROR: Engine or worker crashed ({type(ex).__name__}: {ex}). Terminating immediately.",
-                        file=sys.stderr,
-                    )
-                    sys.stdout.flush()
-                    sys.stderr.flush()
-                    e.shutdown(wait=False, cancel_futures=True)
-                    if sys.platform != "win32":
-                        os.killpg(os.getpgrp(), signal.SIGKILL)
-                    else:
-                        for child in active_children():
-                            child.kill()  # Forcefully kill the running worker processes
-                        os._exit(1)
+            except chess.engine.EngineTerminatedError as ex:
+                print(
+                    f"\nFATAL ERROR: Engine or worker crashed ({type(ex).__name__}: {ex}). Terminating immediately.",
+                    file=sys.stderr,
+                )
+                sys.stdout.flush()
+                sys.stderr.flush()
+                e.terminate()
+                if sys.platform != "win32":
+                    os.killpg(os.getpgrp(), signal.SIGKILL)
+                else:
+                    for child in active_children():
+                        child.kill()  # Forcefully kill the running worker processes
+                    os._exit(1)
 
     print("")
 
