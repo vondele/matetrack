@@ -1,6 +1,6 @@
-import argparse, random, re, sys, concurrent.futures, chess, chess.engine, chess.syzygy, logging
+import argparse, random, re, sys, chess, chess.engine, chess.syzygy, logging
 from time import time
-from multiprocessing import freeze_support, cpu_count, active_children
+from multiprocessing import freeze_support, cpu_count, active_children, Pool
 from tqdm import tqdm
 import json
 import os, signal
@@ -477,14 +477,11 @@ if __name__ == "__main__":
     futures = []
 
     with tqdm(total=len(fenschunked), smoothing=0, miniters=1) as pbar:
-        with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as e:
-            for entry in fenschunked:
-                futures.append(e.submit(ana.analyze_fens, entry))
-
-            for future in concurrent.futures.as_completed(futures):
+        with Pool(processes=workers) as e:
+            for future in e.imap_unordered(ana.analyze_fens, fenschunked):
                 pbar.update(1)
                 try:
-                    res += future.result()
+                    res += future
                 except Exception as ex:
                     print(
                         f"\nFATAL ERROR: Engine or worker crashed ({type(ex).__name__}: {ex}). Terminating immediately.",
