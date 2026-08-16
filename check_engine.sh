@@ -185,7 +185,10 @@ run_suite() {
     if [ "$GOMATENODES" -eq "0" ]; then
       echo -e "\n${BOLD}--- Skipping: th$th go-mate$egtb ---$NOCOL"
     else
-      run_test "th$th go-mate$egtb" "matecheck${th}gm$suffix" "${SYZYGY_ARGS[@]}" "${FLAG_ARGS[@]}" --engine "$ENGINE" --epdFile matetrack.epd matedtrack.epd --bmMax 2 --mate 0 --nodes "$GOMATENODES" --threads "$th"
+      python advancepvs.py --targetMate -2 --outFile mates2all.epd > /dev/null
+      head -n 1003 mates2all.epd > mates2head.epd
+      run_test "th$th go-mate$egtb" "matecheck${th}gm$suffix" "${SYZYGY_ARGS[@]}" "${FLAG_ARGS[@]}" --engine "$ENGINE" --epdFile mates2head.epd --bmMax 2 --mate 0 --nodes "$GOMATENODES" --threads "$th"
+      rm -rf mates2all.epd mates2head.epd
 
       total=$(grep "Total FENs:" "matecheck${th}gm$suffix" | awk '{print $3}')
       bmates=$(grep "Best mates:" "matecheck${th}gm$suffix" | awk '{print $3}')
