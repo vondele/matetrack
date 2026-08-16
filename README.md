@@ -36,7 +36,7 @@ with the raw data in [`classic1000000.csv`](classic1000000.csv).
 ### Usage of `matecheck.py`
 
 ```
-usage: matecheck.py [-h] [--epdFile EPDFILE [EPDFILE ...]] [--engine ENGINE] [--timeout TIMEOUT] [--nodes NODES] [--depth DEPTH] [--time TIME] [--timeinc TIMEINC] [--mate MATE] [--hash HASH] [--threads THREADS] [--multiPV MULTIPV] [--multipvFile MULTIPVFILE [MULTIPVFILE ...]] [--syzygyPath SYZYGYPATH] [--evalFile EVALFILE] [--syzygy50MoveRule SYZYGY50MOVERULE] [--maxTBscore MAXTBSCORE] [--minTBscore MINTBSCORE] [--maxValidMate MAXVALIDMATE] [--minValidMate MINVALIDMATE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--bmMin BMMIN] [--bmMax BMMAX] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench] [--logFile LOGFILE] [--foundMatesFile FOUNDMATESFILE]
+usage: matecheck.py [-h] [--epdFile EPDFILE [EPDFILE ...]] [--engine ENGINE] [--timeout TIMEOUT] [--nodes NODES] [--depth DEPTH] [--time TIME] [--timeinc TIMEINC] [--mate MATE] [--hash HASH] [--threads THREADS] [--multiPV MULTIPV] [--multipvFile MULTIPVFILE [MULTIPVFILE ...]] [--syzygyPath SYZYGYPATH] [--evalFile EVALFILE] [--syzygy50MoveRule SYZYGY50MOVERULE] [--maxTBscore MAXTBSCORE] [--minTBscore MINTBSCORE] [--maxValidMate MAXVALIDMATE] [--minValidMate MINVALIDMATE] [--concurrency CONCURRENCY] [--engineOpts ENGINEOPTS] [--bmMin BMMIN] [--bmMax BMMAX] [--showAllIssues] [--shortTBPVonly] [--showAllStats] [--bench] [--logFile LOGFILE] [--foundMatesFile FOUNDMATESFILE] [--missedMatesFile MISSEDMATESFILE]
 
 Check how many (best) mates an engine finds in e.g. matetrack.epd, a file with lines of the form "FEN bm #X;".
 
@@ -82,6 +82,8 @@ options:
   --logFile LOGFILE     optional file to log the engine's output while it is analysing (default: None)
   --foundMatesFile FOUNDMATESFILE
                         optional file to save the positions the engine found a mate for (default: None)
+  --missedMatesFile MISSEDMATESFILE
+                        optional file to save the positions the engine found no mate for (default: None)
 ```
 
 Sample output:

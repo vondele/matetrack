@@ -380,6 +380,10 @@ if __name__ == "__main__":
         "--foundMatesFile",
         help="optional file to save the positions the engine found a mate for",
     )
+    parser.add_argument(
+        "--missedMatesFile",
+        help="optional file to save the positions the engine found no mate for",
+    )
     args = parser.parse_args()
     if (
         args.nodes is None
@@ -524,6 +528,7 @@ if __name__ == "__main__":
     bestnodes = [[] for _ in range(maxbm + 1)]
     bestdepth = [[] for _ in range(maxbm + 1)]
     foundmates = {}
+    missedmates = set()
     for fen, bestmate, pvstatus, nodes, depth, _, _ in res:
         found_mate = None
         found_issues = set()
@@ -592,7 +597,11 @@ if __name__ == "__main__":
                 else:
                     txt = f"Found TB score {score} (unexpected)"
                     record_issue(multipv, "Unexpected TB scores", txt, fen, bestmate)
-        if args.mate is not None:
+
+        if found_mate is None:
+            missedmates.add(fen)
+
+        if args.mate == 0:
             if found_mate is None:
                 print(f'Did not find mate for FEN "{fen}" with bm #{bestmate}.')
             elif found_mate != bestmate:
@@ -709,3 +718,11 @@ if __name__ == "__main__":
                 m = foundmates.pop(fen)  # to avoid duplicate output
                 txt = "Found best mate" if m == bm else f"Found mate #{m}"
                 f.write(f'{fen} bm #{bm}; c0 "{txt}"\n')
+
+    if args.missedMatesFile:
+        with open(args.missedMatesFile, "w") as f:
+            for fen, bm in bmfens.items():
+                if fen not in missedmates:
+                    continue
+                missedmates.remove(fen)  # to avoid duplicate output
+                f.write(f"{fen} bm #{bm};\n")
