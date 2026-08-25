@@ -1,6 +1,7 @@
 import argparse
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from matplotlib.ticker import MaxNLocator
 from datetime import datetime
 
 
@@ -58,6 +59,7 @@ class matedata:
             ax.set_ylabel("# of mates", color=yColor)
             ax.tick_params(axis="y", labelcolor=yColor)
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
             plt.setp(
                 ax.get_xticklabels(),
                 rotation=45,
@@ -99,8 +101,10 @@ class matedata:
             ax.plot(dates, bmates, color=bmateColor, linewidth=bmateLineWidth)
             ax.set_ylabel("# of best mates", color=bmateColor)
             ax.tick_params(axis="y", labelcolor=bmateColor)
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
             ax2.set_ylabel("# of mates", color=mateColor)
             ax2.tick_params(axis="y", labelcolor=mateColor, labelsize=7)
+            ax2.yaxis.set_major_locator(MaxNLocator(integer=True))
             if sum(v for v in issues if v is not None):
                 color, label = (
                     ("red", "needs investigation")
@@ -123,7 +127,7 @@ class matedata:
                 datmin, datmax = min(cleandat), max(cleandat)
                 datmean = (datmin + datmax) // 2
                 datpct = datmax * 100 / max(datmean, 1) - 100
-                datStr = f"{s}$\subset$[{datmin},{datmax}]$\\approx${datmean}$\pm${datpct:.1f}%"
+                datStr = f"{s}$\\subset$[{datmin},{datmax}]$\\approx${datmean}$\\pm${datpct:.1f}%"
                 lenStr = len(datStr) - 20  # account for LaTeX commands
                 ax.text(
                     0.055 + Idx * (0.94 - 0.012 * lenStr),
