@@ -624,6 +624,26 @@ if __name__ == "__main__":
                 record_issue(multipv, "Bad PVs", txt, fen, bestmate, pv)
                 continue
             board.push(uci)
+
+            # deal with checkmates/stalemates manually
+            if not bool(board.legal_moves):
+                if board.is_checkmate():
+                    if mate:
+                        if mate < 0:
+                            txt = f"Found mate #{mate} (wrong sign wrt #1) for move {move}"
+                            record_issue(multipv, "Wrong mates", txt, fen, bestmate)
+                    elif tb is not None:
+                        txt = f"Found TB score {score} (wrong sign wrt #1) for move {move}"
+                        record_issue(multipv, "Wrong TB scores", txt, fen, bestmate)
+                else:
+                    if mate:
+                        txt = f"Found mate #{mate} (for stalemate) for move {move}"
+                        record_issue(multipv, "Wrong mates", txt, fen, bestmate)
+                    elif tb is not None:
+                        txt = f"Found TB score {score} (for stalemate) for move {move}"
+                        record_issue(multipv, "Wrong TB scores", txt, fen, bestmate)
+                continue
+
             child = board.epd()
             if child not in multipv_fens:
                 continue
