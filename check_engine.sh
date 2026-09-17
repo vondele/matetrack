@@ -202,7 +202,7 @@ run_suite() {
     if ! echo "$UCI" | grep -q "MultiPV"; then
       echo -e "\n${RED}WARNING: Engine does not support UCI option MultiPV. Skipping th$th multiPV$egtb.$NOCOL"
     else
-      run_test "th$th multiPV$egtb" "matecheck${th}mpv$suffix" "${SYZYGY_ARGS[@]}" "${FLAG_ARGS[@]}" --engine "$ENGINE" --epdFile mates2000.epd --nodes "$NODES" --multiPV 4 --multipvFile matetrack_multipv.epd matedtrack_multipv.epd --threads "$th"
+      run_test "th$th multiPV$egtb" "matecheck${th}mpv$suffix" "${SYZYGY_ARGS[@]}" "${FLAG_ARGS[@]}" --engine "$ENGINE" --epdFile mates2000.epd --nodes "$NODES" --multiPV 256 --multipvFile matetrack_multipv.epd matedtrack_multipv.epd --threads "$th"
     fi
   done
 }
