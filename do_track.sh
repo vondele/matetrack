@@ -27,6 +27,7 @@ else
   suffix=_"$firstrev"_"$lastrev"_"$nodes"
 fi
 out=out.tmp # file for output from matecheck.py
+newCommits=no # whether new commits were added to the csv files
 
 for prefix in $suites; do
   csv=$prefix$suffix.csv # list of previously computed results
@@ -160,6 +161,7 @@ for prefix in $suites; do
   csv=$prefix$suffix.csv
   new=new$csv
   if [ -s $new ]; then
+    newCommits=yes
     cat $new >>$csv
     rm $new
     python3 plotdata.py $csv
@@ -171,6 +173,14 @@ for prefix in $suites; do
     rm -f $new
   fi
 done
+
+# update the commit subjects for the interactive graphs if there are new results
+if [ "$newCommits" = "yes" ]; then
+  python3 gitsubjects.py
+  if [ "$repo" = "yes" ]; then
+    git add commitsubjects.json
+  fi
+fi
 
 if [ "$repo" = "yes" ]; then
   git diff --staged --quiet || git commit -m "Update results"

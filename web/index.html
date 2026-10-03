@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>matetrack - evolution of Stockfish mate finding effectiveness</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #333333; --muted: #666666; --border: #dddddd;
+    --btn-bg: #ffffff; --link: #0366d6;
+  }
+  html[data-theme="dark"] {
+    --bg: #0d1117; --fg: #c9d1d9; --muted: #8b949e; --border: #30363d;
+    --btn-bg: #161b22; --link: #58a6ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    html:not([data-theme="light"]) {
+      --bg: #0d1117; --fg: #c9d1d9; --muted: #8b949e; --border: #30363d;
+      --btn-bg: #161b22; --link: #58a6ff;
+    }
+  }
+  body {
+    font-family: sans-serif; max-width: 1000px; margin: 0 auto; padding: 1em;
+    background: var(--bg); color: var(--fg);
+  }
+  h1 { font-size: 1.3em; }
+  p { font-size: 0.9em; }
+  .controls { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin: 0.5em 0 0.25em; }
+  .controls > div { display: flex; width: 240px; }
+  .controls button {
+    font: inherit; font-size: 11px; padding: 2px 0; flex: 1; white-space: nowrap;
+    background: var(--btn-bg); color: var(--fg); border: 1px solid var(--muted); cursor: pointer;
+  }
+  .controls button + button { border-left: 0; }
+  .controls button.active { background: var(--muted); color: var(--bg); }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 0.4em 0 0.6em; }
+  .chart { width: 100%; height: 460px; }
+  footer { font-size: 11px; color: var(--muted); margin-top: 2.5em; }
+  a { color: var(--link); }
+</style>
+</head>
+<body>
+
+<h1>Evolution of Stockfish mate finding effectiveness</h1>
+<p>
+  Mates found by <a href="https://github.com/official-stockfish/Stockfish">Stockfish</a>
+  master commits over time. Source data and discussion:
+  <a href="https://github.com/vondele/matetrack">vondele/matetrack</a>.
+</p>
+
+<div class="controls">
+  <div>
+    <button type="button" id="btn-suite-matetrack" class="active">General</button><button
+      type="button" id="btn-suite-classic">Endgames</button>
+  </div>
+  <div>
+    <button type="button" id="btn-view-commits" class="active">Commit counter</button><button
+      type="button" id="btn-view-chronological">Chronological</button>
+  </div>
+  <div>
+    <button type="button" id="btn-theme-light" class="active">Light</button><button
+      type="button" id="btn-theme-dark">Dark</button>
+  </div>
+</div>
+<hr>
+<div class="chart" id="chart"></div>
+
+<hr>
+
+<footer>
+  Interactive version of the graphs in the
+  <a href="https://github.com/vondele/matetrack#readme">matetrack README</a>,
+  updated automatically whenever new results are pushed. The graph shows either
+  the general mate problems (matetrack.epd) or the classical endgame mates
+  (classic280.epd), each with a chronological view (x-axis: commit date) and a
+  commit counter view (x-axis: commits ago, defaulting to the last 50),
+  zoomable via the slider or the mouse wheel, with the stats referring to the
+  visible commits. Hover over the graph for the commit date and subject,
+  left-click to open the corresponding Stockfish commit on GitHub.
+</footer>
+
+<script src="echarts.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

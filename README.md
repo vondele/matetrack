@@ -4,7 +4,9 @@
 Track the performance of [official Stockfish](https://github.com/official-stockfish/Stockfish)
 in finding the (best) mates within the 6554 mate problems in [`matetrack.epd`](matetrack.epd).
 The raw data is available in [`matetrack1000000.csv`](matetrack1000000.csv),
-and is visualized in the graphs below.
+and is visualized in the graphs below. An interactive version with zoomable
+graphs and per-commit details is available on
+[GitHub Pages](https://vondele.github.io/matetrack/).
 
 <p align="center">
   <img src="matetrack1000000all.png?raw=true">
