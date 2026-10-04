@@ -51,6 +51,24 @@ check(
   "setTheme switches the chart palette"
 );
 
+check(
+  m.legendAxisNames("commits", {}).join() === "mates,best mates" &&
+    m.legendAxisNames("commits", { mates: false }).join() === ",best mates" &&
+    m.legendAxisNames("commits", { "best mates": false }).join() === "mates," &&
+    m.legendAxisNames("chronological", { mates: false }).join() === "mates" &&
+    m.legendAxisNames("chronological", { mates: false, "best mates": false }).join() === "" &&
+    m.legendAxisNames("chronological").join() === "mates",
+  "legendAxisNames blanks the names of hidden series"
+);
+var legendLines = [{ text: "a", color: "#111111" }, { text: "b", color: "#222222" }];
+check(
+  m.legendStatsLines(legendLines, {}).map(function (l) { return l.text; }).join() === "a,b" &&
+    m.legendStatsLines(legendLines, { mates: false }).map(function (l) { return l.text; }).join() === "a," &&
+    m.legendStatsLines(legendLines, { "best mates": false }).map(function (l) { return l.text; }).join() === ",b" &&
+    legendLines.map(function (l) { return l.text; }).join() === "a,b",
+  "legendStatsLines blanks the stats of hidden series, without mutating"
+);
+
 ["light", "dark"].forEach(function (theme) {
   m.setTheme(theme);
   var pal = m.THEMES[theme];
@@ -78,7 +96,7 @@ m.SUITES.forEach(function (suite) {
     var yAxes = Array.isArray(options.yAxis) ? options.yAxis : [options.yAxis];
     var wantNames = view === "chronological"
       ? { y: ["mates"], x: "date" }
-      : { y: ["best mates", "mates"], x: "commit counter" };
+      : { y: ["mates", "best mates"], x: "commit counter" };
     check(
       yAxes.map(function (y) { return y.name; }).join() === wantNames.y.join() &&
         yAxes.every(function (y) {
@@ -87,9 +105,21 @@ m.SUITES.forEach(function (suite) {
         options.xAxis.name === wantNames.x &&
         options.xAxis.nameLocation === "middle" &&
         options.grid.left === 64 &&
-        options.grid.right === (view === "chronological" ? 24 : 70),
-      suite.key + "/" + view + ": x and y axis names set, names clear of tick labels"
+        options.grid.right === (view === "chronological" ? 24 : 70) &&
+        (view === "chronological" ||
+          (yAxes[0].axisLabel.color === pal.matesLabel &&
+            yAxes[1].axisLabel.color === pal.bmates &&
+            yAxes[1].splitLine.show === false)),
+      suite.key + "/" + view + ": x and y axis names set, names clear of tick labels," +
+        " mates on the left axis"
     );
+    if (view === "commits") {
+      check(
+        typeof options.xAxis.axisLabel.formatter === "function" &&
+          typeof options.dataZoom[1].labelFormatter === "function",
+        suite.key + "/" + view + ": integral x-axis tick labels via formatter"
+      );
+    }
     check(
       options.series[0].markLine.label.color === options.xAxis.axisLabel.color &&
         options.series[0].markLine.label.fontWeight === "bold" &&
@@ -109,9 +139,10 @@ m.SUITES.forEach(function (suite) {
     check(
       issueSeries.length === 0 ||
         (issueSeries[0].symbolSize === 10 &&
+          issueSeries[0].yAxisIndex === 0 &&
           issueSeries[0].itemStyle.color === "rgba(0,0,0,0)" &&
           issueSeries[0].itemStyle.borderWidth > 0),
-      suite.key + "/" + view + ": issue markers are hollow rings"
+      suite.key + "/" + view + ": issue markers are hollow rings on the mates axis"
     );
     check(
       options.title.text.indexOf(suite.label) !== -1 &&
@@ -343,6 +374,42 @@ m.SUITES.forEach(function (suite) {
         suite.key + "/" + view + ": all " + issueRows + " issue rings rendered"
       );
     }
+    if (view === "commits") {
+      // fractional zoom ranges must still give integral x-axis tick labels
+      chart.dispatchAction({ type: "dataZoom", start: 33.3, end: 61.7 });
+      var svgF = chart.renderToSVGString();
+      var xLabels = [...svgF.matchAll(/<text ([^>]*)>(-?[0-9][0-9.,]*)</g)]
+        .filter(function (t) {
+          var tr = t[1].match(/translate\(([\d.]+) ([\d.]+)\)/);
+          return tr && +tr[2] > 355 && /text-anchor="middle"/.test(t[1]);
+        })
+        .map(function (t) { return t[2]; });
+      check(
+        xLabels.length >= 2 && xLabels.every(function (t) { return /^-?\d+$/.test(t); }),
+        suite.key + "/" + view + ": x-axis tick labels integral after fractional zoom (" +
+          xLabels.join(" ") + ")"
+      );
+      // hiding a series via the legend removes its axis and its axis name
+      chart.dispatchAction({ type: "dataZoom", start: 0, end: 100 });
+      chart.dispatchAction({ type: "legendToggleSelect", name: "best mates" });
+      var sel = chart.getOption().legend[0].selected;
+      chart.setOption({
+        yAxis: [{ name: m.legendAxisNames("commits", sel)[0] }, { name: m.legendAxisNames("commits", sel)[1] }]
+      });
+      var svgL = chart.renderToSVGString();
+      var nameTexts = [...svgL.matchAll(/<text ([^>]*matrix[^>]*)>([^<]+)</g)]
+        .map(function (t) { return t[2]; });
+      var greenTicks = [...svgL.matchAll(/<text [^>]*fill="' + pal.bmates + '"[^>]*>([0-9][0-9.,]*)</g)]
+        .map(function (t) { return t[1]; });
+      check(
+        nameTexts.indexOf("best mates") === -1 &&
+          nameTexts.indexOf("mates") !== -1 &&
+          greenTicks.length === 0,
+        suite.key + "/" + view + ": hidden series drops its axis ticks and name"
+      );
+      chart.dispatchAction({ type: "legendToggleSelect", name: "best mates" });
+    }
+
     // sample zoom windows to exercise the side choice for the stats text and,
     // less frequently, the y-axis tick sequences
     for (var zs = 0; zs <= 95; zs += 5) {

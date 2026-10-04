@@ -152,6 +152,29 @@ function statsLines(rows, from, to) {
   return [line("best mates", "bmates", COLORS.bmates), line("mates", "mates", COLORS.mates)];
 }
 
+// y-axis names for the given legend selection: the names of hidden series
+// are blanked, in the chronological view only when both series are hidden
+function legendAxisNames(view, selected) {
+  selected = selected || {};
+  if (view === "chronological") {
+    return [selected.mates === false && selected["best mates"] === false ? "" : "mates"];
+  }
+  return [
+    selected.mates === false ? "" : "mates",
+    selected["best mates"] === false ? "" : "best mates"
+  ];
+}
+
+// stats lines for the given legend selection: lines of hidden series are
+// blanked, keeping one entry per line for the graphic elements
+function legendStatsLines(lines, selected) {
+  selected = selected || {};
+  return lines.map(function (l, idx) {
+    var key = idx === 0 ? "best mates" : "mates";
+    return selected[key] === false ? { text: "", color: l.color } : l;
+  });
+}
+
 // width of the stats text, using the browser text metrics, with an estimate
 // as fallback for testing with node
 var textWidthCtx = null;
@@ -387,21 +410,12 @@ function buildOptions(suite, rows, subjects, view) {
     xAxis.min = 1 - n;
     xAxis.max = 0;
     xAxis.minInterval = 1;
+    // the commit counter is integral, so are its tick labels
+    xAxis.axisLabel.formatter = function (v) { return Math.round(v); };
+    dataZoom[1].labelFormatter = function (v) { return Math.round(v); };
+    // mates on the left axis, as in the chronological view, best mates on
+    // the alternate right axis
     yAxis = [
-      {
-        type: "value",
-        name: "best mates",
-        nameLocation: "middle",
-        nameRotate: 90,
-        nameGap: 52,
-        nameTextStyle: { color: COLORS.bmates, fontSize: 12 },
-        scale: true,
-        boundaryGap: ["0%", "25%"],
-        minInterval: 1,
-        axisLine: { lineStyle: { color: COLORS.axis } },
-        axisLabel: { color: COLORS.bmates, fontSize: 12 },
-        splitLine: { lineStyle: { color: COLORS.grid } }
-      },
       {
         type: "value",
         name: "mates",
@@ -414,6 +428,20 @@ function buildOptions(suite, rows, subjects, view) {
         minInterval: 1,
         axisLine: { lineStyle: { color: COLORS.axis } },
         axisLabel: { color: COLORS.matesLabel, fontSize: 12 },
+        splitLine: { lineStyle: { color: COLORS.grid } }
+      },
+      {
+        type: "value",
+        name: "best mates",
+        nameLocation: "middle",
+        nameRotate: 90,
+        nameGap: 52,
+        nameTextStyle: { color: COLORS.bmates, fontSize: 12 },
+        scale: true,
+        boundaryGap: ["0%", "25%"],
+        minInterval: 1,
+        axisLine: { lineStyle: { color: COLORS.axis } },
+        axisLabel: { color: COLORS.bmates, fontSize: 12 },
         splitLine: { show: false }
       }
     ];
@@ -432,7 +460,7 @@ function buildOptions(suite, rows, subjects, view) {
       {
         name: "mates",
         type: "line",
-        yAxisIndex: 1,
+        yAxisIndex: 0,
         symbol: "circle",
         symbolSize: 6,
         lineStyle: { width: 0.75, opacity: 0.5 },
@@ -444,7 +472,7 @@ function buildOptions(suite, rows, subjects, view) {
       {
         name: "best mates",
         type: "line",
-        yAxisIndex: 0,
+        yAxisIndex: 1,
         symbol: "circle",
         symbolSize: 6,
         lineStyle: { width: 1 },
@@ -459,7 +487,7 @@ function buildOptions(suite, rows, subjects, view) {
       series.push({
         name: issueName,
         type: "scatter",
-        yAxisIndex: 1,
+        yAxisIndex: 0,
         symbolSize: 10,
         progressive: 0,
         itemStyle: {
@@ -583,6 +611,8 @@ if (typeof module !== "undefined" && module.exports) {
     parseCSV: parseCSV,
     buildOptions: buildOptions,
     statsLines: statsLines,
+    legendAxisNames: legendAxisNames,
+    legendStatsLines: legendStatsLines,
     statsSide: statsSide,
     statsGraphic: statsGraphic,
     measureTextWidth: measureTextWidth,
@@ -612,25 +642,39 @@ if (typeof document !== "undefined") {
   function renderAll(dataBySuite, subjects) {
     var chart = echarts.init(document.getElementById("chart"));
     charts.push(chart);
-    var state = { suite: SUITES[0], view: "commits", theme: initialTheme() };
 
-    function rows() {
-      return dataBySuite[state.suite.key];
-    }
-
-    function storedTheme() {
+    function storedChoice(key, valid) {
       try {
-        return localStorage.getItem("matetrack-theme");
+        var value = localStorage.getItem(key);
+        return valid.indexOf(value) !== -1 ? value : null;
       } catch (e) {
         return null;
       }
     }
 
+    function storeChoice(key, value) {
+      try {
+        localStorage.setItem(key, value);
+      } catch (e) {}
+    }
+
     function initialTheme() {
-      var stored = storedTheme();
-      if (stored === "light" || stored === "dark") return stored;
+      var stored = storedChoice("matetrack-theme", Object.keys(THEMES));
+      if (stored) return stored;
       return window.matchMedia &&
         window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+
+    var storedSuite = storedChoice("matetrack-suite", SUITES.map(function (s) { return s.key; }));
+    var state = {
+      suite: SUITES.filter(function (s) { return s.key === storedSuite; })[0] || SUITES[0],
+      view: storedChoice("matetrack-view", VIEWS) || "commits",
+      theme: initialTheme()
+    };
+    var lastMatesSelected = true; // to detect mates toggles for the rings
+
+    function rows() {
+      return dataBySuite[state.suite.key];
     }
 
     function syncButtons() {
@@ -647,14 +691,17 @@ if (typeof document !== "undefined") {
 
     function update() {
       chart.setOption(buildOptions(state.suite, rows(), subjects, state.view), { notMerge: true });
+      lastMatesSelected = true; // the legend selection resets with the options
       updateStats();
     }
 
-    // stats over the visible commits, drawn at the bottom inside the grid
+    // stats over the visible commits, drawn at the bottom inside the grid,
+    // with the lines of legend-hidden series blanked out
     function updateStats() {
       var r = rows();
       var span = visibleSpan(chart, r, state.view);
-      var lines = statsLines(r, span.from, span.to);
+      var selected = (chart.getOption().legend[0] || {}).selected;
+      var lines = legendStatsLines(statsLines(r, span.from, span.to), selected);
       var side = statsSide(chart, r, state.view, span, measureTextWidth(lines));
       var rightMargin = state.view === "chronological"
         ? GRID.rightChronological
@@ -662,10 +709,21 @@ if (typeof document !== "undefined") {
       chart.setOption(statsGraphic(lines, side, rightMargin));
     }
 
+    // hide the y-axis names of legend-hidden series
+    function updateAxisNames(selected) {
+      var names = legendAxisNames(state.view, selected);
+      chart.setOption(
+        state.view === "chronological"
+          ? { yAxis: { name: names[0] } }
+          : { yAxis: [{ name: names[0] }, { name: names[1] }] }
+      );
+    }
+
     SUITES.forEach(function (suite) {
       document.getElementById("btn-suite-" + suite.key).addEventListener("click", function () {
         if (state.suite !== suite) {
           state.suite = suite;
+          storeChoice("matetrack-suite", suite.key);
           syncButtons();
           update();
         }
@@ -675,6 +733,7 @@ if (typeof document !== "undefined") {
       document.getElementById("btn-view-" + view).addEventListener("click", function () {
         if (state.view !== view) {
           state.view = view;
+          storeChoice("matetrack-view", view);
           syncButtons();
           update();
         }
@@ -685,13 +744,31 @@ if (typeof document !== "undefined") {
         if (state.theme !== theme) {
           state.theme = theme;
           setTheme(theme);
-          try {
-            localStorage.setItem("matetrack-theme", theme);
-          } catch (e) {}
+          storeChoice("matetrack-theme", theme);
           syncButtons();
           update();
         }
       });
+    });
+
+    // the issue rings live on the mates axis: toggle them together with the
+    // mates series, so that hiding mates also hides its axis
+    chart.on("legendselectchanged", function (e) {
+      var selected = e.selected;
+      var matesSelected = selected.mates !== false;
+      if (matesSelected !== lastMatesSelected) {
+        lastMatesSelected = matesSelected;
+        var issueName = null;
+        chart.getOption().series.forEach(function (s) {
+          if (s.name && s.name.indexOf("investigation") !== -1) issueName = s.name;
+        });
+        if (issueName && selected[issueName] !== matesSelected) {
+          chart.dispatchAction({ type: "legendToggleSelect", name: issueName });
+          selected[issueName] = matesSelected;
+        }
+      }
+      updateAxisNames(selected);
+      updateStats();
     });
 
     // follow browser theme changes as long as there is no explicit choice
@@ -699,7 +776,7 @@ if (typeof document !== "undefined") {
       var mq = window.matchMedia("(prefers-color-scheme: dark)");
       var onPreferenceChange = function (e) {
         var theme = e.matches ? "dark" : "light";
-        if (state.theme !== theme && !storedTheme()) {
+        if (state.theme !== theme && !storedChoice("matetrack-theme", Object.keys(THEMES))) {
           state.theme = theme;
           setTheme(theme);
           syncButtons();
