@@ -1641,6 +1641,7 @@
  "5c2b3859579e20cb1abc8d53ae7ee229fbc1e335": "Update the WDL model",
  "5c2fbcd09b43bd6867780a3ace303ffb1e09d763": "Revert \"pseudo_legal() and MOVE_NONE\"",
  "5c4002aa827653a125130a0d01d0bb96dd2b8bae": "Simplified shuffle extension version (#2121)",
+ "5c4cef0bfe61fb3249178b2bcf21f5673557efe7": "Update NNUE architecture to SFNNv18 and net nn-c9e480e92425.nnue",
  "5c589142ae5714ecb9ded29bec12c591a1ba8f3f": "Add wiki to artifacts",
  "5c58d1f5cb4871595c07e6c2f6931780b5ac05b5": "Use per-thread counterMoveHistory",
  "5c58f6712667076babe9ebaac1689436721c42be": "less bonus for blocked connected pawn",
