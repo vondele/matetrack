@@ -533,8 +533,8 @@ if __name__ == "__main__":
         found_mate = None
         found_issues = set()
 
-        def record_issue(multipv, key, txt, fen, bm, pv=None):
-            if multipv != 1:
+        def record_issue(multipv, key, txt, fen, bm, pv=None, mpv_issue=False):
+            if multipv != 1 or mpv_issue:
                 key = "MultiPV " + key
                 txt = f"multipv{multipv}: " + txt
             issue[key][0] += 1
@@ -548,6 +548,9 @@ if __name__ == "__main__":
                     + (f"\nPV: {' '.join(pv)}" if pv else "")
                 )
                 print(txt)
+
+        def record_multipv_issue(multipv, key, txt, fen, bm, pv=None):
+            record_issue(multipv, key, txt, fen, bm, pv, True)
 
         for (multipv, mate, score, pv), (status, last_line) in pvstatus.items():
             if mate and (mate > args.maxValidMate or mate < args.minValidMate):
@@ -575,7 +578,7 @@ if __name__ == "__main__":
                     elif multipv == 1 or mate > 0:
                         txt = f"Found mate #{mate} (wrong sign)"
                         record_issue(multipv, "Wrong mates", txt, fen, bestmate)
-                elif mate:
+                elif multipv == 1 or mate > 0:
                     txt = f"Found mate #{mate} (unexpected)"
                     record_issue(multipv, "Unexpected mates", txt, fen, bestmate)
             elif tb is not None:
@@ -594,7 +597,7 @@ if __name__ == "__main__":
                     elif multipv == 1 or score > 0:
                         txt = f"Found TB score {score} (wrong sign)"
                         record_issue(multipv, "Wrong TB scores", txt, fen, bestmate)
-                else:
+                elif multipv == 1 or score > 0:
                     txt = f"Found TB score {score} (unexpected)"
                     record_issue(multipv, "Unexpected TB scores", txt, fen, bestmate)
 
@@ -621,7 +624,7 @@ if __name__ == "__main__":
             uci = chess.Move.from_uci(move)
             if uci not in board.legal_moves:
                 txt = f"Found illegal root move {move}"
-                record_issue(multipv, "Bad PVs", txt, fen, bestmate, pv)
+                record_multipv_issue(multipv, "Bad PVs", txt, fen, bestmate, pv)
                 continue
             board.push(uci)
 
@@ -631,17 +634,23 @@ if __name__ == "__main__":
                     if mate:
                         if mate < 0:
                             txt = f"Found mate #{mate} (wrong sign wrt #1) for move {move}"
-                            record_issue(multipv, "Wrong mates", txt, fen, bestmate)
+                            record_multipv_issue(
+                                multipv, "Wrong mates", txt, fen, bestmate
+                            )
                     elif tb is not None:
                         txt = f"Found TB score {score} (wrong sign wrt #1) for move {move}"
-                        record_issue(multipv, "Wrong TB scores", txt, fen, bestmate)
+                        record_multipv_issue(
+                            multipv, "Wrong TB scores", txt, fen, bestmate
+                        )
                 else:
                     if mate:
                         txt = f"Found mate #{mate} (for stalemate) for move {move}"
-                        record_issue(multipv, "Wrong mates", txt, fen, bestmate)
+                        record_multipv_issue(multipv, "Wrong mates", txt, fen, bestmate)
                     elif tb is not None:
                         txt = f"Found TB score {score} (for stalemate) for move {move}"
-                        record_issue(multipv, "Wrong TB scores", txt, fen, bestmate)
+                        record_multipv_issue(
+                            multipv, "Wrong TB scores", txt, fen, bestmate
+                        )
                 continue
 
             child = board.epd()
@@ -655,16 +664,22 @@ if __name__ == "__main__":
                     if mate * childbm > 0:
                         if abs(mate) < abs(childbm):
                             txt = f"Found mate #{mate} (better than #{childbm}) for move {move}"
-                            record_issue(multipv, "Better mates", txt, fen, bestmate)
+                            record_multipv_issue(
+                                multipv, "Better mates", txt, fen, bestmate
+                            )
                         if status != "ok":
                             txt = f'Found mate #{mate} for move {move} with PV status "{status}"'
-                            record_issue(multipv, "Bad PVs", txt, fen, bestmate, pv)
+                            record_multipv_issue(
+                                multipv, "Bad PVs", txt, fen, bestmate, pv
+                            )
                     else:
                         txt = f"Found mate #{mate} (wrong sign wrt #{childbm}) for move {move}"
-                        record_issue(multipv, "Wrong mates", txt, fen, bestmate)
+                        record_multipv_issue(multipv, "Wrong mates", txt, fen, bestmate)
                 else:
                     txt = f"Found mate #{mate} (unexpected) for move {move}"
-                    record_issue(multipv, "Unexpected mates", txt, fen, bestmate)
+                    record_multipv_issue(
+                        multipv, "Unexpected mates", txt, fen, bestmate
+                    )
             elif tb is not None:
                 if childbm:
                     if score * childbm > 0:
@@ -675,13 +690,19 @@ if __name__ == "__main__":
                             or "TB entry" in status
                         ):
                             txt = f'Found TB score {score} (for #{childbm}) with PV status "{status}" for move {move}'
-                            record_issue(multipv, "Bad PVs", txt, fen, bestmate, pv)
+                            record_multipv_issue(
+                                multipv, "Bad PVs", txt, fen, bestmate, pv
+                            )
                     else:
                         txt = f"Found TB score {score} (wrong sign wrt #{childbm}) for move {move}"
-                        record_issue(multipv, "Wrong TB scores", txt, fen, bestmate)
+                        record_multipv_issue(
+                            multipv, "Wrong TB scores", txt, fen, bestmate
+                        )
                 else:
                     txt = f"Found TB score {score} (unexpected) for move {move}"
-                    record_issue(multipv, "Unexpected TB scores", txt, fen, bestmate)
+                    record_multipv_issue(
+                        multipv, "Unexpected TB scores", txt, fen, bestmate
+                    )
 
     print(f"\nUsing {msg}")
     if name:
