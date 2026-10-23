@@ -1,6 +1,6 @@
-import argparse, random, re, sys, chess, chess.engine, chess.syzygy, logging
+import argparse, random, re, sys, concurrent.futures, chess, chess.engine, chess.syzygy, logging
 from time import time
-from multiprocessing import freeze_support, cpu_count, active_children, Pool
+from multiprocessing import freeze_support, cpu_count, active_children
 from tqdm import tqdm
 import json
 import os, signal
@@ -481,19 +481,27 @@ if __name__ == "__main__":
     futures = []
 
     with tqdm(total=len(fenschunked), smoothing=0, miniters=1) as pbar:
-        with Pool(processes=workers) as e:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as e:
             try:
-                for future in e.imap_unordered(ana.analyze_fens, fenschunked):
+                for entry in fenschunked:
+                    futures.append(e.submit(ana.analyze_fens, entry))
+
+                for future in concurrent.futures.as_completed(futures):
                     pbar.update(1)
-                    res += future
-            except chess.engine.EngineTerminatedError as ex:
-                print(
-                    f"\nFATAL ERROR: Engine or worker crashed ({type(ex).__name__}: {ex}). Terminating immediately.",
-                    file=sys.stderr,
-                )
+                    res += future.result()
+            except (
+                chess.engine.EngineTerminatedError,
+                concurrent.futures.process.BrokenProcessPool,
+                KeyboardInterrupt,
+            ) as ex:
+                if isinstance(ex, KeyboardInterrupt):
+                    reason = "Interrupted"
+                else:
+                    reason = f"FATAL ERROR: Engine or worker crashed ({type(ex).__name__}: {ex})"
+                print(f"\n{reason}. Terminating immediately.", file=sys.stderr)
                 sys.stdout.flush()
                 sys.stderr.flush()
-                e.terminate()
+                e.shutdown(wait=False, cancel_futures=True)
                 if sys.platform != "win32":
                     os.killpg(os.getpgrp(), signal.SIGKILL)
                 else:
