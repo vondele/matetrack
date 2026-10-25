@@ -1,9 +1,17 @@
-import argparse, random, re, sys, chess, chess.engine, chess.syzygy, logging
+import argparse, random, re, sys, concurrent.futures, chess, chess.engine, chess.syzygy, logging
 from time import time
-from multiprocessing import freeze_support, cpu_count, active_children, Pool
+from multiprocessing import freeze_support, cpu_count, active_children
 from tqdm import tqdm
 import json
-import os, signal
+import os, signal, subprocess
+
+
+def init_worker():
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
+def sigterm_handler(signum, frame):
+    raise KeyboardInterrupt
 
 
 class TB:
@@ -136,69 +144,71 @@ class Analyser:
     def analyze_fens(self, fens):
         result_fens = []
         engine = chess.engine.SimpleEngine.popen_uci(self.engine, timeout=self.timeout)
-        if self.threads is not None:
-            engine.configure({"Threads": self.threads})
-        if self.hash is not None:
-            engine.configure({"Hash": self.hash})
-        if self.evalFile is not None:
-            engine.configure({"EvalFile": self.evalFile})
-        if self.syzygyPath is not None:
-            engine.configure({"SyzygyPath": self.syzygyPath})
-        if self.syzygy50MoveRule is not None:
-            engine.configure({"Syzygy50MoveRule": self.syzygy50MoveRule})
-        if self.engineOpts is not None:
-            engine.configure(self.engineOpts)
-        for fen, bm in fens:
-            board = chess.Board(fen)
-            pvstatus = {}  #  stores (status, final_line)
-            m, score, pv = None, None, ()
-            nodes = depth = lastnodes = lasttime = 0
-            if self.mate is not None and self.mate == 0 and bm:
-                limit = chess.engine.Limit(
-                    nodes=self.nodes, depth=self.depth, time=self.time, mate=abs(bm)
+        try:
+            if self.threads is not None:
+                engine.configure({"Threads": self.threads})
+            if self.hash is not None:
+                engine.configure({"Hash": self.hash})
+            if self.evalFile is not None:
+                engine.configure({"EvalFile": self.evalFile})
+            if self.syzygyPath is not None:
+                engine.configure({"SyzygyPath": self.syzygyPath})
+            if self.syzygy50MoveRule is not None:
+                engine.configure({"Syzygy50MoveRule": self.syzygy50MoveRule})
+            if self.engineOpts is not None:
+                engine.configure(self.engineOpts)
+            for fen, bm in fens:
+                board = chess.Board(fen)
+                pvstatus = {}  #  stores (status, final_line)
+                m, score, pv = None, None, ()
+                nodes = depth = lastnodes = lasttime = 0
+                if self.mate is not None and self.mate == 0 and bm:
+                    limit = chess.engine.Limit(
+                        nodes=self.nodes, depth=self.depth, time=self.time, mate=abs(bm)
+                    )
+                else:
+                    limit = self.limit
+                lastkey = None
+                with engine.analysis(
+                    board, limit, multipv=self.multiPV, game=board
+                ) as analysis:
+                    for info in analysis:
+                        lastnodes = info.get("nodes", lastnodes)
+                        lasttime = info.get("time", lasttime)
+                        if "score" in info:
+                            multipv = info.get("multipv", 1)
+                            temp_score = info["score"].pov(board.turn)
+                            temp_m = temp_score.mate()
+                            if multipv == 1:
+                                lastkey = None
+                            if "upperbound" in info or "lowerbound" in info:
+                                if temp_m:
+                                    pvstatus[multipv, temp_m, None, "bound"] = "", False
+                                continue
+                            m, score = temp_m, temp_score.score()
+                            if m is None and (
+                                self.syzygyPath is None
+                                or score is None
+                                or abs(score) < self.minTBscore
+                            ):
+                                continue
+                            pv = tuple(m.uci() for m in info["pv"]) if "pv" in info else ()
+                            if (multipv, m, score, pv) not in pvstatus:
+                                pvstatus[multipv, m, score, pv] = (
+                                    pv_status(fen, m, score, pv) if m else "None",
+                                    False,
+                                )
+                            if multipv == 1:
+                                nodes = lastnodes
+                                depth = info.get("depth", 0)
+                                lastkey = 1, m, score, pv
+                if lastkey in pvstatus:  # mark final info line for best move
+                    pvstatus[lastkey] = pvstatus[lastkey][0], True
+                result_fens.append(
+                    (fen, bm, pvstatus, nodes, depth, lastnodes, lasttime)
                 )
-            else:
-                limit = self.limit
-            lastkey = None
-            with engine.analysis(
-                board, limit, multipv=self.multiPV, game=board
-            ) as analysis:
-                for info in analysis:
-                    lastnodes = info.get("nodes", lastnodes)
-                    lasttime = info.get("time", lasttime)
-                    if "score" in info:
-                        multipv = info.get("multipv", 1)
-                        temp_score = info["score"].pov(board.turn)
-                        temp_m = temp_score.mate()
-                        if multipv == 1:
-                            lastkey = None
-                        if "upperbound" in info or "lowerbound" in info:
-                            if temp_m:
-                                pvstatus[multipv, temp_m, None, "bound"] = "", False
-                            continue
-                        m, score = temp_m, temp_score.score()
-                        if m is None and (
-                            self.syzygyPath is None
-                            or score is None
-                            or abs(score) < self.minTBscore
-                        ):
-                            continue
-                        pv = tuple(m.uci() for m in info["pv"]) if "pv" in info else ()
-                        if (multipv, m, score, pv) not in pvstatus:
-                            pvstatus[multipv, m, score, pv] = (
-                                pv_status(fen, m, score, pv) if m else "None",
-                                False,
-                            )
-                        if multipv == 1:
-                            nodes = lastnodes
-                            depth = info.get("depth", 0)
-                            lastkey = 1, m, score, pv
-            if lastkey in pvstatus:  # mark final info line for best move
-                pvstatus[lastkey] = pvstatus[lastkey][0], True
-            result_fens.append((fen, bm, pvstatus, nodes, depth, lastnodes, lasttime))
-
-        engine.quit()
-
+        finally:
+            engine.quit()
         return result_fens
 
 
@@ -473,6 +483,11 @@ if __name__ == "__main__":
     )
 
     print(f"\nMatetrack started for {msg} ...", flush=True)
+
+    signal.signal(signal.SIGTERM, sigterm_handler)
+    if sys.platform != "win32":
+        signal.signal(signal.SIGHUP, sigterm_handler)
+
     engine = chess.engine.SimpleEngine.popen_uci(args.engine)
     name = engine.id.get("name", "")
     engine.quit()
@@ -481,24 +496,38 @@ if __name__ == "__main__":
     futures = []
 
     with tqdm(total=len(fenschunked), smoothing=0, miniters=1) as pbar:
-        with Pool(processes=workers) as e:
+        with concurrent.futures.ProcessPoolExecutor(
+            max_workers=workers, initializer=init_worker
+        ) as e:
             try:
-                for future in e.imap_unordered(ana.analyze_fens, fenschunked):
+                for entry in fenschunked:
+                    futures.append(e.submit(ana.analyze_fens, entry))
+
+                for future in concurrent.futures.as_completed(futures):
                     pbar.update(1)
-                    res += future
-            except chess.engine.EngineTerminatedError as ex:
-                print(
-                    f"\nFATAL ERROR: Engine or worker crashed ({type(ex).__name__}: {ex}). Terminating immediately.",
-                    file=sys.stderr,
-                )
+                    res += future.result()
+            except BaseException as ex:
+                signal.signal(signal.SIGINT, signal.SIG_IGN)
+                if isinstance(ex, KeyboardInterrupt):
+                    reason = "Interrupted"
+                else:
+                    reason = (
+                        f"FATAL ERROR: Engine or worker crashed"
+                        f" ({type(ex).__name__}: {ex})"
+                    )
+                print(f"\n{reason}. Terminating immediately.", file=sys.stderr)
                 sys.stdout.flush()
                 sys.stderr.flush()
-                e.terminate()
+                e.shutdown(wait=False, cancel_futures=True)
                 if sys.platform != "win32":
+                    for child in active_children():
+                        child.kill()
                     os.killpg(os.getpgrp(), signal.SIGKILL)
                 else:
-                    for child in active_children():
-                        child.kill()  # Forcefully kill the running worker processes
+                    subprocess.run(
+                        ["taskkill", "/F", "/T", "/PID", str(os.getpid())],
+                        capture_output=True,
+                    )
                     os._exit(1)
 
     print("")
