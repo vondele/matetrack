@@ -168,15 +168,20 @@ class Analyser:
                     )
                 else:
                     limit = self.limit
-                lastkey = None
+                lastkey = lastpvmove = None
+                nopv = []  # (multipv, depth) for score info lines without a pv
                 with engine.analysis(
                     board, limit, multipv=self.multiPV, game=board
                 ) as analysis:
                     for info in analysis:
                         lastnodes = info.get("nodes", lastnodes)
                         lasttime = info.get("time", lasttime)
+                        multipv = info.get("multipv", 1)
+                        if info.get("pv") and multipv == 1:
+                            lastpvmove = info["pv"][0].uci()
                         if "score" in info:
-                            multipv = info.get("multipv", 1)
+                            if not info.get("pv"):
+                                nopv.append((multipv, info.get("depth", 0)))
                             temp_score = info["score"].pov(board.turn)
                             temp_m = temp_score.mate()
                             if multipv == 1:
@@ -192,7 +197,11 @@ class Analyser:
                                 or abs(score) < self.minTBscore
                             ):
                                 continue
-                            pv = tuple(m.uci() for m in info["pv"]) if "pv" in info else ()
+                            pv = (
+                                tuple(m.uci() for m in info["pv"])
+                                if "pv" in info
+                                else ()
+                            )
                             if (multipv, m, score, pv) not in pvstatus:
                                 pvstatus[multipv, m, score, pv] = (
                                     pv_status(fen, m, score, pv) if m else "None",
@@ -202,10 +211,21 @@ class Analyser:
                                 nodes = lastnodes
                                 depth = info.get("depth", 0)
                                 lastkey = 1, m, score, pv
+                    bestmove = analysis.wait().move
+                    bestmove = bestmove.uci() if bestmove else None
                 if lastkey in pvstatus:  # mark final info line for best move
                     pvstatus[lastkey] = pvstatus[lastkey][0], True
                 result_fens.append(
-                    (fen, bm, pvstatus, nodes, depth, lastnodes, lasttime)
+                    (
+                        fen,
+                        bm,
+                        pvstatus,
+                        nodes,
+                        depth,
+                        lastnodes,
+                        lasttime,
+                        (bestmove, lastpvmove, nopv),
+                    )
                 )
         finally:
             engine.quit()
@@ -426,6 +446,10 @@ if __name__ == "__main__":
 
     bmfens = load_bmfens(args.epdFile, unlimited, args.mate, args.bmMin, args.bmMax)
 
+    for fen in [f for f in bmfens if not chess.Board(f).legal_moves.count()]:
+        print(f'Warning: IGNORING FEN without legal moves: "{fen}"')
+        del bmfens[fen]
+
     absbms = [abs(bm) for bm in bmfens.values() if bm is not None]
     numbm = len(absbms)
     absbms = absbms if absbms else [0]
@@ -536,7 +560,7 @@ if __name__ == "__main__":
     if args.syzygyPath is not None:
         tb = TB(args.syzygyPath, args.syzygy50MoveRule)
         c = 0
-        for _, _, pvstatus, _, _, _, _ in res:
+        for _, _, pvstatus, _, _, _, _, _ in res:
             c += sum(1 for (multipv, _, score, _) in pvstatus if score is not None)
         if c:
             print(f"Checking up to {c} TB win PVs. This may take some time ...")
@@ -551,6 +575,9 @@ if __name__ == "__main__":
         "Bad PVs",
         "Wrong TB scores",
         "Unexpected TB scores",
+        "Bestmove mismatches",
+        "Missing PVs",
+        "Missing bestmoves",
     ]:
         for prefix in ["", "MultiPV "]:
             issue[prefix + txt] = [0, 0]
@@ -558,7 +585,7 @@ if __name__ == "__main__":
     bestdepth = [[] for _ in range(maxbm + 1)]
     foundmates = {}
     missedmates = set()
-    for fen, bestmate, pvstatus, nodes, depth, _, _ in res:
+    for fen, bestmate, pvstatus, nodes, depth, _, _, bestmovedata in res:
         found_mate = None
         found_issues = set()
 
@@ -580,6 +607,18 @@ if __name__ == "__main__":
 
         def record_multipv_issue(multipv, key, txt, fen, bm, pv=None):
             record_issue(multipv, key, txt, fen, bm, pv, True)
+
+        # check that bestmove matches the final pv output
+        bestmove, lastpvmove, nopv = bestmovedata
+        for multipv, pvdepth in nopv:
+            txt = f"Found info line without PV at depth {pvdepth}"
+            record_issue(multipv, "Missing PVs", txt, fen, bestmate)
+        if bestmove is None:
+            txt = "Engine did not return a bestmove"
+            record_issue(1, "Missing bestmoves", txt, fen, bestmate)
+        elif lastpvmove is not None and bestmove != lastpvmove:
+            txt = f"Found bestmove {bestmove} not matching final PV move {lastpvmove}"
+            record_issue(1, "Bestmove mismatches", txt, fen, bestmate)
 
         for (multipv, mate, score, pv), (status, last_line) in pvstatus.items():
             if mate and (mate > args.maxValidMate or mate < args.minValidMate):
@@ -771,7 +810,7 @@ if __name__ == "__main__":
 
     if args.bench:
         totalnodes = totaltime = 0
-        for _, _, _, _, _, lastnodes, lasttime in res:
+        for _, _, _, _, _, lastnodes, lasttime, _ in res:
             totalnodes += lastnodes
             totaltime += lasttime
         print("\n===========================")
