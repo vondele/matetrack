@@ -477,6 +477,7 @@
  "1c50d8cbf554733c0db6ab423b413d75cc0c1928": "Upon changing the number of threads, make sure all threads are bound",
  "1c65310c0e5ac639a51c3d6b9b114d48aa57bdd8": "Refactor some threads related code.",
  "1c67b46caf91a0e6277967ea9a7e4b2f6afbc971": "Linearize corrHist",
+ "1c6f497afc176044b2feca9ce74a7bdce9e7e0cb": "Revert \"Use universal build code for arch detection\"",
  "1c7a727795b82de75ed83e9648a94134ef75576a": "Use move assignment in movegen.h",
  "1cb9afbdc04fbb864ee48babe56c1e88867d11e9": "Remove razoring history update.",
  "1cbba8d6fadaae2c6e6df5c541c4e2b8a8bf5a0a": "Small passed pawn simplification",
