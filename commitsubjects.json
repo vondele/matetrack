@@ -2504,6 +2504,7 @@
  "883163395ed464d17c6732e227a2d2c3c0b26f1e": "Simplify promotion move generation",
  "88331add0d1220068f1bc1c0e1db88598425dafc": "Remove the dependency on a Worker from evaluate",
  "883367d21749eb91a5a3737338b5a7f507751a5a": "Asymmetrical 8x8 Pawn PSQT",
+ "88337401b7a4d5724611cd1ac32bdacf9e778ebd": "Remove correlation term from evaluation scaling",
  "885813b0e3d68fb9b817182a813ba884c575ff2c": "simplify delta-based reductions to constant PvNode discount",
  "8863afeb84d28716cfb5907044bc4e2a00230d42": "Add a penalty for low mobility pieces",
  "886ed90ec3599cdf0dc4e7d07b0543a27028c6c0": "Use less time on recaptures",
