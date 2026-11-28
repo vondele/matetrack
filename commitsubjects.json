@@ -2219,6 +2219,7 @@
  "7a36c0e95fba5c544014b440fb2f35ef73e50393": "Remove quiet move streak",
  "7a372f3fd71a036ed35d2d474f44a3138be69a0f": "Tweak evaluation correction factor.",
  "7a3844e6eff9535427485f138886082282beb2c7": "Fix PGO build with GCC (#904)",
+ "7a41728ab05c68e2d3028813ed0d5e2c027fa9d6": "VVLTC parameters tweak",
  "7a4de96159f76f2465d474d76e08a1c8ca3383b8": "Skip futility pruning if ttMove has bad history",
  "7a613689710939671b8af8d5fe035000573b768a": "Tweak of knight PSQT and mobility bonuses",
  "7a6fa34f5f9f0f193d9350cd58c82a8f98a6505d": "Improve compatibility",
